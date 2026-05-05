@@ -8,7 +8,7 @@ REWARD_SURVIVAL      =  0.05   # small bonus for staying alive each step
 REWARD_STEP          = -0.1    # small penalty each step to encourage urgency
 REWARD_CLOSER_FOOD   =  1.0    # dense reward for moving toward nearest food
 REWARD_FARTHER_FOOD  = -0.5    # small penalty for moving away from food
-WALL_PROXIMITY_SCALE = -1.5    # penalty per step scaled by how close the head is to the nearest wall
+WALL_PROXIMITY_SCALE = -1.0    # penalty per step scaled by how close the head is to the nearest wall
 
 
 def _dist_to_nearest_wall(frame: ClientGameStateFrame) -> int:
