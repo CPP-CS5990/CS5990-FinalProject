@@ -7,11 +7,11 @@ class ActorCritic(nn.Module):
     Shared CNN backbone with separate Actor and Critic heads.
 
     Input shape: (batch, 5 * n_frames, H, W)
-    Actor output: (batch, 4)   - logits over N/S/E/W
+    Actor output: (batch, 3)   - logits over straight/left/right
     Critic output: (batch, 1)  - scalar state value
     """
 
-    def __init__(self, in_channels: int, n_actions: int = 4):
+    def __init__(self, in_channels: int, n_actions: int = 3):
         super().__init__()
 
         self.cnn = nn.Sequential(
