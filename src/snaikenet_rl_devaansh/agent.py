@@ -13,8 +13,27 @@ from snaikenet_rl_devaansh.reward import compute_reward
 
 N_FRAMES     = 2        # number of frames to stack
 ROLLOUT_SIZE = 512      # steps collected before each PPO update
-ACTION_MAP   = [ClientDirection.NORTH, ClientDirection.SOUTH,
-                ClientDirection.EAST,  ClientDirection.WEST]
+
+# Relative actions: 0 = straight, 1 = turn left, 2 = turn right
+_TURN_LEFT = {
+    ClientDirection.NORTH: ClientDirection.WEST,
+    ClientDirection.WEST:  ClientDirection.SOUTH,
+    ClientDirection.SOUTH: ClientDirection.EAST,
+    ClientDirection.EAST:  ClientDirection.NORTH,
+}
+_TURN_RIGHT = {
+    ClientDirection.NORTH: ClientDirection.EAST,
+    ClientDirection.EAST:  ClientDirection.SOUTH,
+    ClientDirection.SOUTH: ClientDirection.WEST,
+    ClientDirection.WEST:  ClientDirection.NORTH,
+}
+
+def _resolve_action(action_idx: int, current_dir: ClientDirection) -> ClientDirection:
+    if action_idx == 1:
+        return _TURN_LEFT[current_dir]
+    if action_idx == 2:
+        return _TURN_RIGHT[current_dir]
+    return current_dir
 
 
 class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
@@ -41,6 +60,7 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
         self._prev_value: float | None = None
 
         self.update_count: int = 0
+        self._current_dir: ClientDirection = ClientDirection.NORTH
 
         # Callback set by __main__ so the handler can send directions to the server
         self.send_direction = None   # type: ignore[assignment]
@@ -105,8 +125,10 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
             log_prob_val = log_prob.item()
             value_val    = value.item()
 
+            resolved_dir = _resolve_action(action_idx, self._current_dir)
+            self._current_dir = resolved_dir
             if self.send_direction is not None:
-                self.send_direction(ACTION_MAP[action_idx])
+                self.send_direction(resolved_dir)
         else:
             # Dead this tick - pick a placeholder; won't be acted on
             action_idx, log_prob_val, value_val = 0, 0.0, 0.0
@@ -130,6 +152,7 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
         # New episode begins - reset episode state but keep buffer + networks
         self._prev_frame = None
         self._prev_state = None
+        self._current_dir = ClientDirection.NORTH
 
     def on_game_end(self):
         self.on_game_restart()
