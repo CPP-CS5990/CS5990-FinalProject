@@ -60,7 +60,13 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
         self._prev_value: float | None = None
 
         self.update_count: int = 0
+        self.session_start_update: int = 0
         self._current_dir: ClientDirection = ClientDirection.NORTH
+
+        self._episode_steps: int = 0
+        self._episode_food: int = 0
+        self._rollout_episodes: list[tuple[int, int]] = []
+        self.metrics: list[tuple[int, float, float]] = []
 
         # Callback set by __main__ so the handler can send directions to the server
         self.send_direction = None   # type: ignore[assignment]
@@ -93,6 +99,16 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
 
         # 2. Store transition from the PREVIOUS step into the buffer
         if self._prev_frame is not None:
+            # Episode metric tracking
+            if self._prev_frame.is_alive:
+                self._episode_steps += 1
+                if frame.is_alive and frame.player_length > self._prev_frame.player_length:
+                    self._episode_food += 1
+            if not frame.is_alive and self._prev_frame.is_alive:
+                self._rollout_episodes.append((self._episode_steps, self._episode_food))
+                self._episode_steps = 0
+                self._episode_food = 0
+
             reward = compute_reward(self._prev_frame, frame)
             done = not frame.is_alive
 
@@ -112,6 +128,13 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
                 last_val = last_value.item() if frame.is_alive else 0.0
                 self.ppo.update(self.buffer, last_value=last_val)
                 self.update_count += 1
+
+                episodes = self._rollout_episodes or [(self._episode_steps, self._episode_food)]
+                avg_steps = sum(e[0] for e in episodes) / len(episodes)
+                avg_food  = sum(e[1] for e in episodes) / len(episodes)
+                self.metrics.append((self.update_count, avg_steps, avg_food))
+                self._rollout_episodes.clear()
+
                 if self.on_ppo_update is not None:
                     self.on_ppo_update(self.update_count)
 

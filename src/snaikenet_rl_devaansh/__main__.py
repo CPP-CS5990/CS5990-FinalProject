@@ -23,6 +23,7 @@ from loguru import logger
 
 from snaikenet_client.client.client import SnaikenetClient
 from snaikenet_rl_devaansh.agent import PPOAgentEventHandler
+from snaikenet_rl_devaansh.plots import save_session_plot
 
 DEFAULT_CHECKPOINT = Path("checkpoint/ppo_agent.ppo")
 SAVE_EVERY = 10     # save checkpoint every N PPO updates
@@ -73,6 +74,7 @@ async def run_client(
     while handler.network is None:
         await asyncio.sleep(0.05)
     handler.update_count = load_checkpoint(handler, checkpoint_path)
+    handler.session_start_update = handler.update_count
 
     # Save after every SAVE_EVERY PPO updates
     def on_ppo_update(update_count: int):
@@ -131,6 +133,14 @@ def main():
         logger.info("Stopping RL agent...")
         if handler.network is not None:
             save_checkpoint(handler, handler.update_count, checkpoint_path)
+            plot_path = save_session_plot(
+                handler.metrics,
+                handler.session_start_update,
+                handler.update_count,
+                checkpoint_path.stem,
+            )
+            if plot_path:
+                logger.info(f"Session plot saved -> {plot_path}")
 
 if __name__ == "__main__":
     main()
