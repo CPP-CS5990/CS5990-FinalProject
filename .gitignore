@@ -222,5 +222,7 @@ __marimo__/
 # IntelliJ
 .idea/
 
+checkpoint*/
+
 # Devaansh RL checkpoint
 checkpoint/

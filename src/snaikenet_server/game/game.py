@@ -195,10 +195,10 @@ async def handle_sleep(next_tick_time: float):
 
 
 def log_tick_rate(tick_times: collections.deque, tick_index: int, tick_interval: float):
-    if tick_index % 100 == 0 and len(tick_times) > 0:
+    if tick_index % 500 == 0 and len(tick_times) > 0:
         avg_tick_ms = (sum(tick_times) / len(tick_times)) * 1000
         real_tps = 1.0 / (tick_interval + (sum(tick_times) / len(tick_times)))
-        logger.debug(
+        logger.info(
             f"Tick {tick_index} | avg tick time: {avg_tick_ms:.2f}ms | real TPS: {real_tps:.2f}\n"
         )
 

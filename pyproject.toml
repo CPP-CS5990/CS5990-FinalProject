@@ -13,7 +13,18 @@ dependencies = [
     "ruff>=0.15.5",
     "torch>=2.6.0",
     "torchrl>=0.11.1",
+    "gymnasium>=1.3.0",
 ]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
 
 [build-system]
 requires = ["setuptools"]
@@ -26,6 +37,8 @@ prototype = "snaikenet_server.game.prototype_game:main"
 pygame_client_demo = "snaikenet_demos.pygame_client_demo:main"
 rl-agent-devaansh = "snaikenet_rl_devaansh.__main__:main"
 rl-agent-ameer = "snaikenet_rl_ameer.__main__:main"
+rl-agent-ameer-gym = "snaikenet_rl_ameer_gymnasium.__main__:main"
+rl-agent-ameer-gymnasium-infer = "snaikenet_rl_ameer_gymnasium.infer:main"
 rl-agent-jack = "snaikenet_rl_jack.__main__:main"
 
 
