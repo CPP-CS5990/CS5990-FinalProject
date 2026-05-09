@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import sys
 import time
 
@@ -97,20 +98,31 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--episodes", type=int, default=10, help="Number of inference episodes")
     parser.add_argument("--max-steps", type=int, default=5000, help="Max steps per episode")
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging")
+    parser.add_argument("--num-agents", type=int, default=1, help="Number of agents")
     return parser.parse_args()
 
+async def run_agents(args):
+    logger.info(f"Starting {args.num_agents} agents")
+    tasks = [
+        asyncio.to_thread(
+            infer,
+            model_path=args.model,
+            server_host=args.host,
+            server_tcp_port=args.port,
+            num_episodes=args.episodes,
+            max_steps_per_episode=args.max_steps,
+        )
+        for _ in range(args.num_agents)
+    ]
+    await asyncio.gather(*tasks)
 
 def main():
     args = parse_args()
     logger.remove()
     logger.add(sys.stderr, level="DEBUG" if args.verbose else "INFO")
-    infer(
-        model_path=args.model,
-        server_host=args.host,
-        server_tcp_port=args.port,
-        num_episodes=args.episodes,
-        max_steps_per_episode=args.max_steps,
-    )
+
+    asyncio.run(run_agents(args))
+
 
 
 if __name__ == "__main__":
