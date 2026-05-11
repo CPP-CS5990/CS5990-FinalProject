@@ -61,7 +61,7 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
 
         self.update_count: int = 0
         self.session_start_update: int = 0
-        self._current_dir: ClientDirection = ClientDirection.NORTH
+        self._current_dir: ClientDirection = ClientDirection.WEST
 
         self._episode_steps: int = 0
         self._episode_food: int = 0
@@ -173,9 +173,13 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
 
     def on_game_restart(self):
         # New episode begins - reset episode state but keep buffer + networks
+        if self._episode_steps > 0:
+            self._rollout_episodes.append((self._episode_steps, self._episode_food))
+        self._episode_steps = 0
+        self._episode_food = 0
         self._prev_frame = None
         self._prev_state = None
-        self._current_dir = ClientDirection.NORTH
+        self._current_dir = ClientDirection.WEST
 
     def on_game_end(self):
         self.on_game_restart()
