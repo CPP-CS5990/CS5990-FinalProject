@@ -5,8 +5,8 @@ REWARD_FOOD          =  50.0
 REWARD_KILL          =  20.0
 REWARD_DEATH         = -100.0
 REWARD_SURVIVAL      =  0.05   # small bonus for staying alive each step
-REWARD_STEP          = -0.1    # small penalty each step to encourage urgency
-REWARD_CLOSER_FOOD   =  1.0    # dense reward for moving toward nearest food
+REWARD_STEP          = -0.2    # small penalty each step to encourage urgency
+REWARD_CLOSER_FOOD   =  2.0    # dense reward for moving toward nearest food
 REWARD_FARTHER_FOOD  = -0.5    # small penalty for moving away from food
 WALL_PROXIMITY_SCALE = -1.0    # penalty per step scaled by how close the head is to the nearest wall
 
