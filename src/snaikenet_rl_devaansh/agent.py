@@ -12,7 +12,7 @@ from snaikenet_rl_devaansh.ppo import PPO
 from snaikenet_rl_devaansh.reward import compute_reward
 
 N_FRAMES     = 2        # number of frames to stack
-ROLLOUT_SIZE = 512      # steps collected before each PPO update
+ROLLOUT_SIZE = 2048     # steps collected before each PPO update
 
 # Relative actions: 0 = straight, 1 = turn left, 2 = turn right
 _TURN_LEFT = {
