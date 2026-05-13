@@ -19,15 +19,23 @@ class Game:
         loop: asyncio.AbstractEventLoop,
         grid_size: GridSize,
         viewport_distance_from_center: tuple[int, int] = (14, 14),
+        max_ticks_since_eaten: int = 250,
+        scoreboard_save_dir: str | None = "scoreboard_data",
     ):
         self._game_lock: threading.Lock = threading.Lock()
-        self._tick_index: int = 0
-        self._game_state = GameState(grid_size, viewport_distance_from_center)
+        self._tick_index: int = -1
+        self._game_state = GameState(
+            grid_size,
+            viewport_distance_from_center=viewport_distance_from_center,
+            scoreboard_save_dir=scoreboard_save_dir,
+        )
+        self._game_state.update_curr_tick_index(self._tick_index)
         self._grid_size = grid_size
         self._viewport_distance_from_center = viewport_distance_from_center
         self._pending_players: set[PlayerID] = set()
         self._loop = loop
         self._is_being_played = False
+        self._max_ticks_since_eaten = max_ticks_since_eaten
         self._stop_event = asyncio.Event()
         self._start_event = asyncio.Event()
 
@@ -120,12 +128,6 @@ class Game:
         with self._game_lock:
             self._game_state.set_player_direction(player_id, direction)
 
-    def get_dead_players(self) -> set[PlayerID]:
-        return self._game_state.get_dead_players()
-
-    def get_grid_size(self) -> GridSize:
-        return self._game_state.get_grid_size()
-
     def get_player_states(self) -> dict[PlayerID, PlayerView]:
         return self._game_state.get_player_states()
 
@@ -153,10 +155,15 @@ class Game:
             self._add_pending_player(player_id)
 
     def _tick(self):
+        # update tick index right before starting the next tick
+        self._tick_index += 1
+        self._game_state.update_curr_tick_index(self._tick_index)
+
         self._game_state.handle_player_moves()
         self._game_state.handle_collisions()
         self._game_state.handle_food_spawning()
-        self._tick_index += 1
+        self._game_state.cull_starving_players(self._max_ticks_since_eaten)
+
         return self._tick_index
 
     def _flush_pending_players(self):
@@ -237,6 +244,7 @@ async def game_loop(
     clean_idle_clients: bool = True,
     client_timeout_seconds: float = 20,
     headless: bool = True,
+    preset_player_ids: list[str] = [],
 ):
 
     server = SnaikenetServer(
@@ -245,6 +253,7 @@ async def game_loop(
         udp_port=udp_port,
         event_handler=_GameEventHandler(game),
         client_timeout_seconds=client_timeout_seconds,
+        preset_player_ids=preset_player_ids,
     )
     await server.start(clean_idle_clients=clean_idle_clients)
 

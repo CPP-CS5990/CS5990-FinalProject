@@ -68,7 +68,11 @@ async def async_main(args, renderer_queue):
 
     tick_interval = 1 / args.tick_rate
     game = Game(
-        loop, args.grid_size, viewport_distance_from_center=args.viewport_distance
+        loop,
+        args.grid_size,
+        viewport_distance_from_center=args.viewport_distance,
+        max_ticks_since_eaten=args.max_ticks_since_eaten,
+        scoreboard_save_dir=args.scoreboard_save_dir,
     )
 
     def stop_server():
@@ -93,6 +97,7 @@ async def async_main(args, renderer_queue):
             clean_idle_clients=args.clean_idle_clients,
             client_timeout_seconds=args.client_timeout,
             headless=args.headless,
+            preset_player_ids=args.preset_player_ids,
         ),
         asyncio.to_thread(console_loop, command_interface),
     )

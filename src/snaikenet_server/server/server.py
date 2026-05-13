@@ -64,6 +64,7 @@ class SnaikenetServer:
         udp_port=8888,
         event_handler: SnaikenetServerEventHandler = DefaultSnaikenetServerEventHandler(),
         client_timeout_seconds: float = 20,
+        preset_player_ids: list[str] = [],
     ):
         self._host: str = host
         self._tcp_port: int = tcp_port
@@ -76,6 +77,7 @@ class SnaikenetServer:
         self._udp_transport: asyncio.DatagramTransport | None = None
         self._clean_idle_clients_task = None
         self._client_timeout_seconds = client_timeout_seconds
+        self._preset_player_ids = list(reversed(preset_player_ids)) # reverse so that pop can be used to just remove the top one
 
     def get_host(self) -> str:
         return self._host
@@ -204,7 +206,8 @@ class SnaikenetServer:
 
             match req_type:
                 case "new":
-                    client_id = str(uuid4())
+                    # pop preset player_ids and then use uuid4 if there are no more available
+                    client_id = self._preset_player_ids.pop() if self._preset_player_ids else str(uuid4())
                     self._connected_clients.remove_client_by_id(
                         client_id
                     )  # Clear any old registration with same UUID just in case, should be very unlikely

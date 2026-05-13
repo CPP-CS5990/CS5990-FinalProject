@@ -12,6 +12,9 @@ class ArgNamespace(argparse.Namespace):
     tick_rate: int
     clean_idle_clients: bool
     client_timeout: float
+    max_ticks_since_eaten: int
+    preset_player_ids: list[str]
+    scoreboard_save_dir: str | None
 
 
 def parse_args() -> ArgNamespace:
@@ -81,7 +84,29 @@ def parse_args() -> ArgNamespace:
         default=True,
         help="Disable automatic cleanup of idle clients (enabled by default)",
     )
+    parser.add_argument(
+        "--max-ticks-since-eaten",
+        type=int,
+        default=250,
+        help="Kill any snake that hasn't eaten in this many ticks (default: 250)",
+    )
+    parser.add_argument(
+        "--preset-player-ids",
+        type=str,
+        nargs="*",
+        default=[],
+        metavar="ID",
+        help="Preset player IDs assigned to new clients in order before falling back to random UUIDs (default: none)",
+    )
+    parser.add_argument(
+        "--scoreboard-save-dir",
+        type=str,
+        default="scoreboard_data",
+        help="Directory to write per-player scoreboard CSVs (pass empty string to disable saving; default: scoreboard_data)",
+    )
     args = parser.parse_args(namespace=ArgNamespace())
+    if args.scoreboard_save_dir == "":
+        args.scoreboard_save_dir = None
     args.grid_size = tuple(args.grid_size)
     args.viewport_distance = tuple(args.viewport_distance)
     return args

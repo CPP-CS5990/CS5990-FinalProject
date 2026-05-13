@@ -8,6 +8,7 @@ from numpy.typing import NDArray
 
 from snaikenet_server.game.grid import Grid, TileData
 from snaikenet_server.game.player import SnakePlayer
+from snaikenet_server.game.scoreboard import Scoreboard
 from snaikenet_server.game.types import PlayerID, GridSize, Position, Direction
 
 
@@ -15,7 +16,9 @@ class GameState:
     def __init__(
         self,
         grid_size: GridSize,
+        tick_index: int = 0,
         viewport_distance_from_center: tuple[int, int] = (14, 14),
+        scoreboard_save_dir: str | None = "scoreboard_data",
     ):
         self._dead_players: dict[PlayerID, PlayerID | None] = {}
         self._players: dict[PlayerID, SnakePlayer] = {}
@@ -26,17 +29,35 @@ class GameState:
             viewport_distance_from_center
         )
         self._max_num_food: int = 1
+        self._scoreboard = Scoreboard(scoreboard_save_dir)
+        self._curr_tick_index = tick_index
+
+    def update_curr_tick_index(self, tick_index: int):
+        self._curr_tick_index = tick_index
+
+    def cull_starving_players(self, max_ticks_since_eaten: int):
+        for player_id, player in self._players.items():
+            player = self._players.get(player_id, None)
+            if player is not None and self._curr_tick_index - player.last_tick_eaten >= max_ticks_since_eaten:
+                self.kill_player(player_id)
 
     def reset_game_state(self):
+        self._scoreboard.save_and_reset()
+        # Cache state values we want to persist across games
         players = dict(self._players)
         spectators = dict(self._spectators)
         max_num_food = self._max_num_food
+        scoreboard = self._scoreboard
 
-        self.__init__(self.get_grid_size(), self._viewport_distance_from_center)
+        # reset the state
+        self.__init__(self.get_grid_size(), 0, self._viewport_distance_from_center)
 
+        # Restore the cached state values
         self._players = players
         self._spectators = spectators
         self._max_num_food = max_num_food
+        self._curr_tick_index = 0
+        self._scoreboard = scoreboard
 
     def get_viewport_distance_from_center(self) -> tuple[int, int]:
         return self._viewport_distance_from_center
@@ -44,11 +65,13 @@ class GameState:
     def kill_player(self, player_id: PlayerID, killer: PlayerID | None = None):
         player = self._players.get(player_id, None)
         if player is not None:
-            if killer is None:
+            if killer is None: # self kill
                 self._kills[player_id] = player_id
             else:
-                self._kills[player_id] = killer
+                self._kills[killer] = player_id
+                self._scoreboard.increment_kills(killer)
             player.die()
+            self._scoreboard.on_player_death(player_id, self._curr_tick_index)
             self._dead_players[player_id] = None
             for position in player:
                 self._grid.remove_player_at(
@@ -124,7 +147,7 @@ class GameState:
 
             # Check for collisions with walls
             if self.position_outside_grid(next_head_position):
-                logger.info(
+                logger.debug(
                     f"Player {player_id} collided with wall at position {next_head_position} and died.\n"
                 )
                 player.remove_head()
@@ -136,15 +159,17 @@ class GameState:
             # Obviously, if multiple players are moving into the same tile, there will be a collision
             # but 1 player will still get to eat the food and grow which means that players new
             # tail will be collidable for the same tick
-            if not self._grid.food_at(next_head_position):
+            if self._grid.food_at(next_head_position):
+                self._scoreboard.increment_food_eaten(player_id)
+                player.last_tick_eaten = self._curr_tick_index
+                logger.debug(
+                    f"Player {player_id} ate food at position {next_head_position} and grew to length {len(player)}.\n"
+                )
+            else:
                 tail_position = player.remove_tail()
                 self._grid.remove_player_at(
                     tail_position, player_id
                 )  # Mark the old tail position as empty on the grid
-            else:
-                logger.info(
-                    f"Player {player_id} ate food at position {next_head_position} and grew to length {len(player)}.\n"
-                )
 
             self._grid.add_player_at(
                 next_head_position, player_id
@@ -173,6 +198,7 @@ class GameState:
 
     def handle_food_spawning(self):
         while self._grid.get_num_food() < self._max_num_food:
+            logger.info(f"Spawning new food. {self._grid.get_num_food()} < {self._max_num_food}")
             food_position = self._grid.get_random_available_food_position()
             if food_position is not None:
                 self._grid.place_food_at(food_position)

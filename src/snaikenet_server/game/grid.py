@@ -11,11 +11,6 @@ type GridStructure = list[list[TileData]]
 
 
 class Grid:
-    _grid_size: GridSize
-    _grid: GridStructure
-    _available_food_positions: ListDict[Position]
-    _num_food_tiles: int = 0
-
     def __init__(self, grid_size: GridSize):
         self._grid_size = grid_size
         self._grid = [
@@ -23,6 +18,7 @@ class Grid:
             for _ in range(grid_size[0])
         ]
         self._available_food_positions = ListDict()
+        self._num_food_tiles = 0
 
     # To award kills, a player needs to be designated as the killer,
     # there may be multiple players at any given position.
@@ -36,8 +32,12 @@ class Grid:
         return None
 
     def remove_player_at(self, position: Position, player_id: PlayerID):
-        self._grid[position[0]][position[1]].remove_player(player_id)
-        self._available_food_positions.add_item(position)
+        tile = self._grid[position[0]][position[1]]
+        tile.remove_player(player_id)
+        # Guard required: if another player still occupies the tile, marking it
+        # available lets handle_food_spawning place food on top of a live snake.
+        if tile.tile_type == TileType.EMPTY:
+            self._available_food_positions.add_item(position)
 
     def add_player_at(self, position: Position, player_id: PlayerID):
         if self._grid[position[0]][position[1]].tile_type == TileType.FOOD:
@@ -62,7 +62,10 @@ class Grid:
         return len(self._grid[position[0]][position[1]].player_ids) > 0
 
     def place_food_at(self, position: Position):
-        self._grid[position[0]][position[1]].make_food()
+        tile = self._grid[position[0]][position[1]]
+        if tile.tile_type == TileType.FOOD:
+            return
+        tile.make_food()
         self._num_food_tiles += 1
         self._available_food_positions.remove_item(position)
 
