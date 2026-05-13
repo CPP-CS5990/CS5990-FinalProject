@@ -12,7 +12,7 @@ from snaikenet_rl_devaansh.ppo import PPO
 from snaikenet_rl_devaansh.reward import compute_reward
 
 N_FRAMES     = 2        # number of frames to stack
-ROLLOUT_SIZE = 512      # steps collected before each PPO update
+ROLLOUT_SIZE = 256      # steps collected before each PPO update
 
 # Relative actions: 0 = straight, 1 = turn left, 2 = turn right
 _TURN_LEFT = {
@@ -61,7 +61,7 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
 
         self.update_count: int = 0
         self.session_start_update: int = 0
-        self._current_dir: ClientDirection = ClientDirection.NORTH
+        self._current_dir: ClientDirection = ClientDirection.WEST
 
         self._episode_steps: int = 0
         self._episode_food: int = 0
@@ -173,9 +173,13 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
 
     def on_game_restart(self):
         # New episode begins - reset episode state but keep buffer + networks
+        if self._episode_steps > 0:
+            self._rollout_episodes.append((self._episode_steps, self._episode_food))
+        self._episode_steps = 0
+        self._episode_food = 0
         self._prev_frame = None
         self._prev_state = None
-        self._current_dir = ClientDirection.NORTH
+        self._current_dir = ClientDirection.WEST
 
     def on_game_end(self):
         self.on_game_restart()
