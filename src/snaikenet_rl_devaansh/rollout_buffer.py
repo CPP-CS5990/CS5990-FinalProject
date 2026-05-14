@@ -14,7 +14,6 @@ class RolloutBuffer:
         self.gamma = gamma
         self.gae_lambda = gae_lambda
         self._ptr = 0
-        self._full = False
 
         # Pre-allocated as plain lists; converted to tensors before training
         self.states: list[torch.Tensor] = []
