@@ -10,10 +10,10 @@ from snaikenet_rl_jack.agent import DoubleDQNAgent
 from snaikenet_rl_jack.network import QNetwork, NUM_ACTIONS
 from snaikenet_rl_jack.replay_buffer import ReplayBuffer
 from snaikenet_rl_jack.reward import closest_food_distance, compute_reward
-from snaikenet_rl_jack.state import NUM_TILE_TYPES, encode_frame
+from snaikenet_rl_jack.state import NUM_TILE_TYPES, VIEWPORT_SIZE, encode_frame
 
 
-W, H = 11, 11
+W, H = VIEWPORT_SIZE
 DEVICE = torch.device("cpu")
 
 
