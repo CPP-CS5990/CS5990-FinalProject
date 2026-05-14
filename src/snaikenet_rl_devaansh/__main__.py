@@ -52,6 +52,8 @@ def load_checkpoint(handler: PPOAgentEventHandler, path: Path) -> int:
     handler.network.load_state_dict(data["network"])
     if "optimizer" in data and handler.ppo is not None:
         handler.ppo.optimizer.load_state_dict(data["optimizer"])
+    if data["update_count"] >= 200 and handler.ppo is not None:
+        handler.ppo.ent_coef = 0.01
     logger.info(f"Checkpoint loaded from {path} at update {data['update_count']}")
     return data["update_count"]
 

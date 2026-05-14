@@ -12,7 +12,7 @@ from snaikenet_rl_devaansh.ppo import PPO
 from snaikenet_rl_devaansh.reward import compute_reward
 
 N_FRAMES     = 2        # number of frames to stack
-ROLLOUT_SIZE = 256      # steps collected before each PPO update
+ROLLOUT_SIZE = 512      # steps collected before each PPO update
 
 # Relative actions: 0 = straight, 1 = turn left, 2 = turn right
 _TURN_LEFT = {
@@ -91,6 +91,13 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
         if self.network is None:
             return      # not initialized yet
 
+        # Guard: must run before preprocessing — if prev frame was dead (on_game_restart
+        # missed via UDP loss), cached action/log_prob are placeholders; reset so
+        # stacker.reset() is called below instead of stacker.step() with a stale frame
+        if self._prev_frame is not None and not self._prev_frame.is_alive:
+            self._prev_frame = None
+            self._prev_state = None
+
         # 1. preprocess current frame
         if self._prev_state is None:
             curr_state = self.stacker.reset(frame)
@@ -98,13 +105,6 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
             curr_state = self.stacker.step(frame)
 
         # 2. Store transition from the PREVIOUS step into the buffer
-        if self._prev_frame is not None:
-            # Guard: if prev frame was dead (on_game_restart missed via UDP loss),
-            # the cached action/log_prob are placeholders — discard to avoid corrupting PPO ratios
-            if not self._prev_frame.is_alive:
-                self._prev_frame = None
-                self._prev_state = None
-
         if self._prev_frame is not None:
             # Episode metric tracking
             if self._prev_frame.is_alive:
