@@ -4,8 +4,8 @@ from snaikenet_client.types import ClientTileType
 REWARD_FOOD          =  50.0
 REWARD_KILL          =  20.0
 REWARD_DEATH         = -100.0
-REWARD_SURVIVAL      =  0.05   # small bonus for staying alive each step
-REWARD_STEP          = -0.2    # small penalty each step to encourage urgency
+REWARD_SURVIVAL      =  0.0    # removed — was rewarding blind straight-line survival
+REWARD_STEP          = -0.5    # increased from -0.2 to make food actively worth pursuing
 REWARD_CLOSER_FOOD   =  2.0    # dense reward for moving toward nearest food
 REWARD_FARTHER_FOOD  = -0.5    # small penalty for moving away from food
 WALL_PROXIMITY_SCALE = -0.3    # penalty per step scaled by how close the head is to the nearest wall
