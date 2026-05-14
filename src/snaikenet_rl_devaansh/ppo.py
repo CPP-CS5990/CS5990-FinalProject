@@ -27,7 +27,7 @@ class PPO:
             n_epochs: int = 4,
             batch_size: int = 64,
             vf_coef: float = 0.5,
-            ent_coef: float = 0.01,
+            ent_coef: float = 0.05,
     ):
         self.network = network
         self.clip_eps = clip_eps
