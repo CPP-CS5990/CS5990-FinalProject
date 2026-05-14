@@ -99,6 +99,13 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
 
         # 2. Store transition from the PREVIOUS step into the buffer
         if self._prev_frame is not None:
+            # Guard: if prev frame was dead (on_game_restart missed via UDP loss),
+            # the cached action/log_prob are placeholders — discard to avoid corrupting PPO ratios
+            if not self._prev_frame.is_alive:
+                self._prev_frame = None
+                self._prev_state = None
+
+        if self._prev_frame is not None:
             # Episode metric tracking
             if self._prev_frame.is_alive:
                 self._episode_steps += 1
@@ -180,6 +187,7 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
         self._prev_frame = None
         self._prev_state = None
         self._current_dir = ClientDirection.WEST
+        self.stacker = FrameStacker(n_frames=N_FRAMES)
 
     def on_game_end(self):
         self.on_game_restart()
