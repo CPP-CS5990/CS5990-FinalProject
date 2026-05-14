@@ -1,7 +1,6 @@
 import csv
 import os.path
 
-import numpy as np
 from loguru import logger
 
 

@@ -157,13 +157,7 @@ class Game:
     def _tick(self):
         # update tick index right before starting the next tick
         self._tick_index += 1
-        self._game_state.update_curr_tick_index(self._tick_index)
-
-        self._game_state.handle_player_moves()
-        self._game_state.handle_collisions()
-        self._game_state.handle_food_spawning()
-        self._game_state.cull_starving_players(self._max_ticks_since_eaten)
-
+        self._game_state.do_tick(self._tick_index, self._max_ticks_since_eaten)
         return self._tick_index
 
     def _flush_pending_players(self):

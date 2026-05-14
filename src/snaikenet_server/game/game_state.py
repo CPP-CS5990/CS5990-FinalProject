@@ -64,26 +64,32 @@ class GameState:
 
     def kill_player(self, player_id: PlayerID, killer: PlayerID | None = None):
         player = self._players.get(player_id, None)
-        if player is not None:
-            if killer is None: # self kill
-                self._kills[player_id] = player_id
-            else:
-                self._kills[killer] = player_id
-                self._scoreboard.increment_kills(killer)
-            player.die()
-            self._scoreboard.on_player_death(player_id, self._curr_tick_index)
-            self._dead_players[player_id] = None
-            for position in player:
-                self._grid.remove_player_at(
-                    position, player_id
-                )  # Mark all tiles occupied by the player as empty on the grid
-
-                # After removing the player from the grid, we place food at positions that don't have another player.
-                # This ensures that food doesn't spawn on top of a player that just killed this player where the players intersected
-                if not self._grid.has_player_at(position):
-                    self._grid.place_food_at(position)
-        else:
+        if player is None:
             logger.warning("Tried killing player that doesn't exist", player_id)
+            return
+        # Dead players remain in self._players (needed for death frames / spectator
+        # state), so callers like cull_starving_players and delete_player can reach
+        # this with an already-dead player. Re-running _replace_player_with_food on
+        # a dead snake re-stamps food at its old body tiles whenever they are EMPTY.
+        if player.is_dead():
+            return
+        if killer is None: # self kill
+            self._kills[player_id] = player_id
+        else:
+            self._kills[killer] = player_id
+            self._scoreboard.increment_kills(killer)
+        player.die()
+        self._scoreboard.on_player_death(player_id, self._curr_tick_index)
+        self._dead_players[player_id] = None
+        self._replace_player_with_food(player)
+
+    def _replace_player_with_food(self, player: SnakePlayer):
+        player_id = player.get_player_id()
+
+        for position in player:
+            self._grid.remove_player_at(
+                position, player_id, True
+            )  # Mark all tiles occupied by the player as empty on the grid
 
     # Adds a new player to the game state
     def add_new_player(self, player_id: PlayerID | None = None) -> PlayerID:
@@ -168,7 +174,7 @@ class GameState:
             else:
                 tail_position = player.remove_tail()
                 self._grid.remove_player_at(
-                    tail_position, player_id
+                    tail_position, player_id, False
                 )  # Mark the old tail position as empty on the grid
 
             self._grid.add_player_at(
@@ -198,7 +204,6 @@ class GameState:
 
     def handle_food_spawning(self):
         while self._grid.get_num_food() < self._max_num_food:
-            logger.info(f"Spawning new food. {self._grid.get_num_food()} < {self._max_num_food}")
             food_position = self._grid.get_random_available_food_position()
             if food_position is not None:
                 self._grid.place_food_at(food_position)
@@ -248,13 +253,7 @@ class GameState:
             )
         )
         logger.debug(f"Initialized max number of food with {self._max_num_food}")
-        for _ in range(self._max_num_food):
-            food_position = self._grid.get_random_available_food_position()
-            if food_position is not None:
-                self._grid.place_food_at(food_position)
-            else:
-                logger.warning("No available positions to place initial food!\n")
-                break
+        self.handle_food_spawning()
 
     def _initialize_player_positions(self):
         num_players = len(self._players)
@@ -400,6 +399,14 @@ class GameState:
 
     def all_players_dead(self):
         return len(self._dead_players) == len(self._players)
+
+    def do_tick(self, tick_index: int, max_ticks_since_eaten: int):
+        self.update_curr_tick_index(tick_index)
+
+        self.handle_player_moves()
+        self.handle_collisions()
+        self.handle_food_spawning()
+        self.cull_starving_players(max_ticks_since_eaten)
 
 
 class PlayerView:
