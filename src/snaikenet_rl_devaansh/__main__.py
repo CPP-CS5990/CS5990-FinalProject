@@ -49,13 +49,19 @@ def load_checkpoint(handler: PPOAgentEventHandler, path: Path) -> int:
     if not path.exists():
         return 0
     data = torch.load(path)
-    handler.network.load_state_dict(data["network"])
-    if "optimizer" in data and handler.ppo is not None:
-        handler.ppo.optimizer.load_state_dict(data["optimizer"])
-    if data["update_count"] >= 200 and handler.ppo is not None:
-        handler.ppo.ent_coef = 0.01
-    logger.info(f"Checkpoint loaded from {path} at update {data['update_count']}")
-    return data["update_count"]
+    try:
+        handler.network.load_state_dict(data["network"])
+        if "optimizer" in data and handler.ppo is not None:
+            handler.ppo.optimizer.load_state_dict(data["optimizer"])
+        if data["update_count"] >= 500 and handler.ppo is not None:
+            handler.ppo.ent_coef = 0.02
+        logger.info(f"Checkpoint loaded from {path} at update {data['update_count']}")
+        return data["update_count"]
+    except RuntimeError as e:
+        logger.warning(
+            f"Checkpoint incompatible with current architecture, starting fresh: {e}"
+        )
+        return 0
 
 async def run_client(
     handler: PPOAgentEventHandler,
@@ -81,11 +87,11 @@ async def run_client(
     handler.update_count = load_checkpoint(handler, checkpoint_path)
     handler.session_start_update = handler.update_count
 
-    # Save after every SAVE_EVERY PPO updates; decay ent_coef after early exploration phase
+    # Save after every SAVE_EVERY PPO updates; decay ent_coef after exploration phase
     def on_ppo_update(update_count: int):
-        if update_count == 200:
-            handler.ppo.ent_coef = 0.01
-            logger.info("ent_coef decayed to 0.01 for stable convergence")
+        if update_count == 500:
+            handler.ppo.ent_coef = 0.02
+            logger.info("ent_coef decayed to 0.02 for stable convergence")
         if update_count % SAVE_EVERY == 0:
             save_checkpoint(handler, update_count, checkpoint_path)
 

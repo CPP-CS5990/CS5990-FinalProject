@@ -64,7 +64,8 @@ def test_devaansh__kill_adds_kill_reward():
     prev = _make_frame(kills=0)
     curr = _make_frame(kills=1)
     reward = compute_reward(prev, curr)
-    expected = REWARD_STEP + REWARD_SURVIVAL + _wall_penalty(curr) + REWARD_KILL
+    # Both frames have no food → off-screen exploration bonus also fires
+    expected = REWARD_STEP + REWARD_SURVIVAL + _wall_penalty(curr) + REWARD_KILL + REWARD_CLOSER_FOOD * 0.1
     assert abs(reward - expected) < 1e-6
 
 
@@ -162,14 +163,16 @@ def test_devaansh__frame_stacker_reset_shape():
     assert out.shape == (NUM_TILE_TYPES * 2, W, H)
 
 
-def test_devaansh__frame_stacker_reset_duplicates_first_frame():
+def test_devaansh__frame_stacker_reset_zero_pads_older_frames():
     stacker = FrameStacker(n_frames=2)
     frame = _make_frame()
     out = stacker.reset(frame)
-    # First and second half of channels should be identical
-    first  = out[:NUM_TILE_TYPES]
-    second = out[NUM_TILE_TYPES:]
-    assert torch.equal(first, second)
+    # Older slot (first half of channels) should be all zeros
+    older = out[:NUM_TILE_TYPES]
+    assert torch.equal(older, torch.zeros_like(older))
+    # Most-recent slot (second half) should match the actual frame
+    newest = out[NUM_TILE_TYPES:]
+    assert not torch.equal(newest, torch.zeros_like(newest))
 
 
 def test_devaansh__frame_stacker_step_updates_correctly():

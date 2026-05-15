@@ -28,6 +28,7 @@ class PPO:
             batch_size: int = 64,
             vf_coef: float = 0.5,
             ent_coef: float = 0.05,
+            target_kl: float = 0.01,
     ):
         self.network = network
         self.clip_eps = clip_eps
@@ -35,6 +36,7 @@ class PPO:
         self.batch_size = batch_size
         self.vf_coef = vf_coef
         self.ent_coef = ent_coef
+        self.target_kl = target_kl
         self.optimizer = optim.Adam(network.parameters(), lr=lr)
 
     def update(self, buffer: RolloutBuffer, last_value: float):
@@ -58,14 +60,19 @@ class PPO:
         # Normalize advantages for training stability
         advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
 
-        tensors =  buffer.get_tensors()
+        tensors = buffer.get_tensors()
         states = tensors["states"]
         actions = tensors["actions"]
         old_log_probs = tensors["log_probs"]
+        old_values = tensors["values"]
 
         n = len(states)
+        kl_exceeded = False
 
         for _ in range(self.n_epochs):
+            if kl_exceeded:
+                break
+
             # Shuffle indices for each epoch
             indices = torch.randperm(n)
 
@@ -75,6 +82,7 @@ class PPO:
                 batch_states = states[batch_idx]
                 batch_actions = actions[batch_idx]
                 batch_old_lp = old_log_probs[batch_idx]
+                batch_old_v = old_values[batch_idx]
                 batch_adv = advantages[batch_idx]
                 batch_returns = returns[batch_idx]
 
@@ -83,14 +91,27 @@ class PPO:
                     batch_states, batch_actions
                 )
 
+                # KL early stopping — if the policy has drifted too far, stop updating
+                with torch.no_grad():
+                    approx_kl = (batch_old_lp - new_log_probs).mean().item()
+                if approx_kl > self.target_kl:
+                    kl_exceeded = True
+                    break
+
                 # PPO clipped surrogate loss
                 ratio = torch.exp(new_log_probs - batch_old_lp)
                 surrogate1 = ratio * batch_adv
                 surrogate2 = torch.clamp(ratio, 1 - self.clip_eps, 1 + self.clip_eps) * batch_adv
                 actor_loss = -torch.min(surrogate1, surrogate2).mean()
 
-                # Critic loss
-                critic_loss = nn.functional.mse_loss(new_values, batch_returns)
+                # Clipped value function loss — prevents the critic from making large unconstrained updates
+                v_clipped = batch_old_v + torch.clamp(
+                    new_values - batch_old_v, -self.clip_eps, self.clip_eps
+                )
+                critic_loss = torch.max(
+                    nn.functional.mse_loss(new_values, batch_returns),
+                    nn.functional.mse_loss(v_clipped, batch_returns),
+                )
 
                 # Entropy bonus (negative because we want to maximize entropy)
                 entropy_loss = -entropy.mean()
@@ -99,7 +120,7 @@ class PPO:
 
                 self.optimizer.zero_grad()
                 loss.backward()
-                nn.utils.clip_grad_norm_(self.network.parameters(), max_norm = 0.5)
+                nn.utils.clip_grad_norm_(self.network.parameters(), max_norm=0.5)
                 self.optimizer.step()
 
         buffer.clear()

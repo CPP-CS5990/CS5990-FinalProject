@@ -1,14 +1,14 @@
 from snaikenet_client.client_data import ClientGameStateFrame
 from snaikenet_client.types import ClientTileType
 
-REWARD_FOOD          =  50.0
-REWARD_KILL          =  20.0
-REWARD_DEATH         = -100.0
-REWARD_SURVIVAL      =  0.0    # removed — was rewarding blind straight-line survival
-REWARD_STEP          = -0.5    # increased from -0.2 to make food actively worth pursuing
-REWARD_CLOSER_FOOD   =  2.0    # dense reward for moving toward nearest food
-REWARD_FARTHER_FOOD  = -0.2    # small penalty from moving away from food
-WALL_PROXIMITY_SCALE = -0.3    # penalty per step scaled by how close the head is to the nearest wall
+REWARD_FOOD          =  5.0    # scaled from 50 — 100x food/step ratio caused critic MSE to explode
+REWARD_KILL          =  2.0
+REWARD_DEATH         = -10.0
+REWARD_SURVIVAL      =  0.0
+REWARD_STEP          = -0.05   # scaled from -0.5 — high step penalty made early death cheaper than starving
+REWARD_CLOSER_FOOD   =  0.3    # dense shaping: moving toward nearest visible food
+REWARD_FARTHER_FOOD  = -0.05   # small penalty for moving away
+WALL_PROXIMITY_SCALE = -0.05   # penalty scaled by proximity to nearest wall
 
 
 def _dist_to_nearest_wall(frame: ClientGameStateFrame) -> int:
@@ -77,5 +77,10 @@ def compute_reward(prev: ClientGameStateFrame,
                 reward += REWARD_CLOSER_FOOD
             elif curr_dist > prev_dist:
                 reward += REWARD_FARTHER_FOOD
+        # Food is off-screen in both frames: give a small exploration bonus so the
+        # agent has a reason to keep moving rather than receiving a flat step penalty
+        # with zero directional signal (which causes circles/straight-line drift).
+        elif prev_dist is None and curr_dist is None:
+            reward += REWARD_CLOSER_FOOD * 0.1
 
     return reward

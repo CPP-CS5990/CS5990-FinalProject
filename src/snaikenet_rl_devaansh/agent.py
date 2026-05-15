@@ -6,12 +6,14 @@ from snaikenet_client.client_data import ClientGameStateFrame
 from snaikenet_client.types import ClientDirection
 
 from snaikenet_rl_devaansh.networks import ActorCritic
-from snaikenet_rl_devaansh.preprocessing import FrameStacker, NUM_TILE_TYPES
+from snaikenet_rl_devaansh.preprocessing import (
+    FrameStacker, NUM_TILE_TYPES, NUM_DIR_CHANNELS, direction_to_tensor,
+)
 from snaikenet_rl_devaansh.rollout_buffer import RolloutBuffer
 from snaikenet_rl_devaansh.ppo import PPO
 from snaikenet_rl_devaansh.reward import compute_reward
 
-N_FRAMES     = 2        # number of frames to stack
+N_FRAMES     = 3        # number of frames to stack
 ROLLOUT_SIZE = 512      # steps collected before each PPO update
 
 # Relative actions: 0 = straight, 1 = turn left, 2 = turn right
@@ -74,10 +76,9 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
         self.on_ppo_update = None   # type: ignore[assignment]
 
     def on_game_start(self, viewport_size: tuple[int, int]):
-        in_channels = NUM_TILE_TYPES * N_FRAMES  # 5 * 2 = 10
+        in_channels = NUM_TILE_TYPES * N_FRAMES + NUM_DIR_CHANNELS  # grid frames + direction
 
         if self.network is None:
-            # First game - create networks
             self.network = ActorCritic(in_channels=in_channels)
             self.ppo = PPO(self.network)
 
@@ -93,16 +94,27 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
 
         # Guard: must run before preprocessing — if prev frame was dead (on_game_restart
         # missed via UDP loss), cached action/log_prob are placeholders; reset so
-        # stacker.reset() is called below instead of stacker.step() with a stale frame
+        # stacker.reset() is called below instead of stacker.step() with a stale frame.
+        # Also reset _current_dir so the direction channel in the first new-episode
+        # observation is not stale from the previous life.
         if self._prev_frame is not None and not self._prev_frame.is_alive:
             self._prev_frame = None
             self._prev_state = None
+            self._current_dir = ClientDirection.WEST
 
-        # 1. preprocess current frame
+        # 1. Preprocess current frame (grid only)
         if self._prev_state is None:
-            curr_state = self.stacker.reset(frame)
+            curr_grid = self.stacker.reset(frame)
         else:
-            curr_state = self.stacker.step(frame)
+            curr_grid = self.stacker.step(frame)
+
+        # Build full observation: stacked grid + direction channel.
+        # Direction is captured BEFORE action selection so that _prev_state always
+        # encodes the heading that was in effect when the cached action was chosen.
+        _, H, W = curr_grid.shape
+        curr_obs = torch.cat(
+            [curr_grid, direction_to_tensor(self._current_dir, H, W)], dim=0
+        )
 
         # 2. Store transition from the PREVIOUS step into the buffer
         if self._prev_frame is not None:
@@ -131,7 +143,7 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
             # If buffer is full, run a PPO update
             if self.buffer.is_full():
                 with torch.no_grad():
-                    _, last_value = self.network.forward(curr_state.unsqueeze(0))
+                    _, last_value = self.network.forward(curr_obs.unsqueeze(0))
                 last_val = last_value.item() if frame.is_alive else 0.0
                 self.ppo.update(self.buffer, last_value=last_val)
                 self.update_count += 1
@@ -145,13 +157,13 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
                 if self.on_ppo_update is not None:
                     self.on_ppo_update(self.update_count)
 
-        # 3. Select action for the current state
+        # 3. Select action for the current observation
         if frame.is_alive:
             with torch.no_grad():
                 action, log_prob, _, value = self.network.get_action_and_value(
-                    curr_state.unsqueeze(0)
+                    curr_obs.unsqueeze(0)
                 )
-            action_idx  = action.item()
+            action_idx   = action.item()
             log_prob_val = log_prob.item()
             value_val    = value.item()
 
@@ -160,12 +172,12 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
             if self.send_direction is not None:
                 self.send_direction(resolved_dir)
         else:
-            # Dead this tick - pick a placeholder; won't be acted on
+            # Dead this tick - placeholder; not stored in buffer
             action_idx, log_prob_val, value_val = 0, 0.0, 0.0
 
-        # 4. Cache for next step
+        # 4. Cache for next step (_prev_state includes direction at time of action)
         self._prev_frame    = frame
-        self._prev_state    = curr_state
+        self._prev_state    = curr_obs
         self._prev_action   = action_idx
         self._prev_log_prob = log_prob_val
         self._prev_value    = value_val
