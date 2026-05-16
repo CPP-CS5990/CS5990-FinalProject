@@ -86,7 +86,7 @@ def main() -> None:
 
     fig, axes = plt.subplots(2, 3, figsize=(15, 9))
     axes = axes.flatten()
-    for ax in axes[len(metrics):]:
+    for ax in axes[len(metrics) :]:
         ax.axis("off")
     for ax, (title, idx) in zip(axes, metrics):
         values = [results[p][idx] for p in PLAYERS]
