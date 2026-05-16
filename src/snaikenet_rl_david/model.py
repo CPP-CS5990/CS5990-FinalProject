@@ -17,7 +17,7 @@ class QNet(nn.Module):
         )
 
         with torch.no_grad():
-            dummy = torch.zeros(1, 5, 41, 41)
+            dummy = torch.zeros(1, 5, 49, 49)
             conv_dim = self.conv(dummy).shape[1]
 
         self.head = nn.Sequential(

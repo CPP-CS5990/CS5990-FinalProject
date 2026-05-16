@@ -2,7 +2,7 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
-from snaikenet_agent.obs_transform import raw_obs_to_model_obs, NUM_TILE_TYPES
+from snaikenet_rl_david.obs_transform import raw_obs_to_model_obs, NUM_TILE_TYPES
 
 
 class SnaikeNetDQNObsWrapper(gym.ObservationWrapper):

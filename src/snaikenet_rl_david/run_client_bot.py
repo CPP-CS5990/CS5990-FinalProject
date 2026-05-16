@@ -1,12 +1,14 @@
 import argparse
 import asyncio
 import random
+import sys
 from collections import deque
 
 import numpy as np
 import torch
+from loguru import logger
 
-from snaikenet_agent.model import QNet
+from snaikenet_rl_david.model import QNet
 from snaikenet_client.client.client import SnaikenetClient
 from snaikenet_client.client.client_event_handler import SnaikenetClientEventHandler
 from snaikenet_client.client_data import ClientGameStateFrame
@@ -187,4 +189,6 @@ async def main():
 
 
 if __name__ == "__main__":
+    logger.remove()
+    logger.add(sys.stderr, level="INFO")
     asyncio.run(main())

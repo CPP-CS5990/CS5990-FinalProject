@@ -4,12 +4,13 @@ import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
 import pygame
+from loguru import logger
 
 from snaikenet_client.client_data import ClientGameStateFrame
 from snaikenet_client.types import ClientDirection, ClientGridStructure, ClientTileType
 from snaikenet_rl_sabrinafair.game_controller import ClientPhase
 
-GRID_LENGTH = 41
+GRID_LENGTH = 49
 WINDOW_WIDTH = 1280
 WINDOW_HEIGHT = 720
 SCOREBOARD_HEIGHT = 40
@@ -35,9 +36,10 @@ class ClientEnv(gym.Env):
     # metadata = {"render_modes": []}
     metadata = {"render_modes": ["human", None]}
 
-    def __init__(self, controller, grid_size=(GRID_LENGTH, GRID_LENGTH)):
+    def __init__(self, controller, grid_size=(GRID_LENGTH, GRID_LENGTH), headless=False):
         super().__init__()
         self.controller = controller
+        self.headless = headless
         self.h, self.w = grid_size
         self.max_steps = 500
         self.steps = 0
@@ -69,12 +71,18 @@ class ClientEnv(gym.Env):
         self.grid_offset_y = 0
         self.countdown_seconds = 0
         self.running = True
-        pygame.init()
-        self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-        pygame.display.set_caption("SnaikeNET")
-        self.font = pygame.font.SysFont("consolas", 18)
-        self.big_font = pygame.font.SysFont("consolas", 120)
-        self.clock = pygame.time.Clock()
+        if not self.headless:
+            pygame.init()
+            self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
+            pygame.display.set_caption("SnaikeNET")
+            self.font = pygame.font.SysFont("consolas", 18)
+            self.big_font = pygame.font.SysFont("consolas", 120)
+            self.clock = pygame.time.Clock()
+        else:
+            self.screen = None
+            self.font = None
+            self.big_font = None
+            self.clock = None
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -83,7 +91,7 @@ class ClientEnv(gym.Env):
         state = self.controller.reset_episode(seed=seed)
         self.last_state = state
 
-        obs = self._obs_from_state(state, self.controller.old_frame, self.direction)
+        obs = self._obs_from_state(self.direction)
         info = {}
         return obs, info
 
@@ -117,15 +125,19 @@ class ClientEnv(gym.Env):
                     self.controller.old_frame = self.controller.latest_frame
                     self.controller.latest_frame = frame
                     self.steps += 1
-                    # next_frame = self.controller.step(int(action))
             elif ev.kind == "game_end":
                 self.game_over = True
-            
+            else:
+                continue
+
             reward = self._reward(self.controller.latest_frame, self.controller.old_frame)
-            obs = self._obs_from_state(self.controller.latest_frame, self.controller.old_frame, self.direction)
+            obs = self._obs_from_state(self.direction)
             terminated = not self.controller.latest_frame.is_alive
             truncated = self.steps >= self.max_steps
             info = self._info(self.controller.latest_frame)
+
+            if self.headless:
+                return obs, reward, terminated, truncated, info
 
             # Render
             self.screen.fill((0, 0, 0))
@@ -188,7 +200,7 @@ class ClientEnv(gym.Env):
             dtype=np.float32,
         )
     
-    def _obs_from_state(self, curr_state: ClientGameStateFrame, prev_state: ClientGameStateFrame, curr_direction):
+    def _obs_from_state(self, curr_direction):
         curr_location = self.get_curr_location()
         dist_to_target = self.get_distances_to_food(self.controller.latest_frame)
 

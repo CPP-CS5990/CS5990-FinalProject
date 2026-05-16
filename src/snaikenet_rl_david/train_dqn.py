@@ -8,11 +8,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from snaikenet_agent.client_env import SnaikeNetClientEnv
-from snaikenet_agent.model import QNet
-from snaikenet_agent.obs_wrapper import SnaikeNetDQNObsWrapper
-from snaikenet_agent.old.obs_wrapper import SnaikeNETObsWrapper
-from snaikenet_agent.old.gym_env import SnaikenetGymEnv
+from snaikenet_rl_david.client_env import SnaikeNetClientEnv
+from snaikenet_rl_david.model import QNet
+from snaikenet_rl_david.obs_wrapper import SnaikeNetDQNObsWrapper
 
 
 def run_validation_episode(env, q_net, max_steps=1000):

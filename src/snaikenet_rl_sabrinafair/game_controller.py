@@ -70,7 +70,7 @@ class QueueClientEventHandler(SnaikenetClientEventHandler):
 
     def on_game_start(self, viewport_size: tuple[int, int]):
         logger.info(f"Game starting with viewport size {viewport_size}")
-        self.event_queue.put(ClientEvent(kind="game_start", viewport_size=viewport_size))
+        self.event_queue.put(ClientEvent(kind="game_restart", viewport_size=viewport_size))
         self._reset_current_sequence_number()
 
     def on_game_about_to_start(self, seconds_until_start: int):

@@ -8,7 +8,7 @@ from snaikenet_agent.old.gym_env import SnaikenetGymEnv
 
 
 def main():
-    checkpoint_path = "checkpoints/dqn_step_90000.pt"
+    checkpoint_path = "training/david/dqn_step_90000.pt"
 
     env = SnaikeNETObsWrapper(SnaikenetGymEnv(step_timeout=30.0))
     action_dim = env.action_space.n
