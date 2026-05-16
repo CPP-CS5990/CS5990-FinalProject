@@ -3,26 +3,21 @@ from enum import IntEnum
 from loguru import logger
 import numpy as np
 from numpy.typing import NDArray
+from snaikenet_server.game.food_positions import FoodPositions
 
-from snaikenet_server.game.list_dict import ListDict
 from snaikenet_server.game.types import GridSize, Position, PlayerID
 
 type GridStructure = list[list[TileData]]
 
 
 class Grid:
-    _grid_size: GridSize
-    _grid: GridStructure
-    _available_food_positions: ListDict[Position]
-    _num_food_tiles: int = 0
-
     def __init__(self, grid_size: GridSize):
         self._grid_size = grid_size
         self._grid = [
             [TileData(tile_type=TileType.EMPTY) for _ in range(grid_size[1])]
             for _ in range(grid_size[0])
         ]
-        self._available_food_positions = ListDict()
+        self._food_positions = FoodPositions()
 
     # To award kills, a player needs to be designated as the killer,
     # there may be multiple players at any given position.
@@ -35,21 +30,30 @@ class Grid:
                 return other_player
         return None
 
-    def remove_player_at(self, position: Position, player_id: PlayerID):
-        self._grid[position[0]][position[1]].remove_player(player_id)
-        self._available_food_positions.add_item(position)
+    def remove_player_at(
+        self, position: Position, player_id: PlayerID, replace_with_food: bool
+    ):
+        tile = self._grid[position[0]][position[1]]
+        tile.remove_player(player_id)
+        # Guard required: if another player still occupies the tile, marking it
+        # available allows food to be placed on top of a live snake.
+        if tile.tile_type == TileType.EMPTY:
+            if replace_with_food:
+                self.place_food_at(position)
+            else:
+                self._food_positions.add_available_food_position(position)
 
     def add_player_at(self, position: Position, player_id: PlayerID):
         if self._grid[position[0]][position[1]].tile_type == TileType.FOOD:
             self.remove_food_at(position)
         self._grid[position[0]][position[1]].add_player(player_id)
-        self._available_food_positions.remove_item(position)
+        self._food_positions.remove_available_food_position(position)
 
     def remove_food_at(self, position: Position):
         if self._grid[position[0]][position[1]].tile_type == TileType.FOOD:
-            self._grid[position[0]][position[1]].tile_type = TileType.EMPTY
-            self._num_food_tiles -= 1
-            self._available_food_positions.add_item(position)
+            self._food_positions.remove_food(position)
+            if len(self._grid[position[0]][position[1]].player_ids) == 0:
+                self._grid[position[0]][position[1]].tile_type = TileType.EMPTY
         else:
             logger.warning(
                 f"Attempting to remove food from a tile that does not contain food at position {position}!\n"
@@ -62,9 +66,11 @@ class Grid:
         return len(self._grid[position[0]][position[1]].player_ids) > 0
 
     def place_food_at(self, position: Position):
-        self._grid[position[0]][position[1]].make_food()
-        self._num_food_tiles += 1
-        self._available_food_positions.remove_item(position)
+        tile = self._grid[position[0]][position[1]]
+        if tile.tile_type == TileType.FOOD:
+            return
+        tile.make_food()
+        self._food_positions.place_food(position)
 
     def get_grid_size(self) -> GridSize:
         return self._grid_size
@@ -76,15 +82,13 @@ class Grid:
         for x in range(self._grid_size[0]):
             for y in range(self._grid_size[1]):
                 if self._grid[x][y].tile_type == TileType.EMPTY:
-                    self._available_food_positions.add_item((x, y))
+                    self._food_positions.add_available_food_position((x, y))
 
     def get_random_available_food_position(self) -> Position | None:
-        if len(self._available_food_positions) == 0:
-            return None
-        return self._available_food_positions.choose_random_item()
+        return self._food_positions.choose_random_food_position()
 
     def get_num_food(self) -> int:
-        return self._num_food_tiles
+        return self._food_positions.get_num_food_tiles()
 
     def get_grid_data(self) -> NDArray[np.uint8]:
         return np.array(
@@ -136,7 +140,7 @@ class TileType(IntEnum):
 
 
 class TileData:
-    def __init__(self, tile_type: int = TileType.EMPTY, player_ids=None):
+    def __init__(self, tile_type: int = TileType.EMPTY, player_ids: list[str] = None):
         if player_ids is None:
             player_ids = []
         self.tile_type: int = tile_type

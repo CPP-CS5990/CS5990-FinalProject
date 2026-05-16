@@ -7,11 +7,26 @@ requires-python = ">=3.14"
 dependencies = [
     "fastapi>=0.135.3",
     "loguru>=0.7.3",
+    "matplotlib>=3.10.9",
     "numpy>=2.4.2",
     "pygame-ce>=2.5.7",
     "ruff>=0.15.5",
-    "torch>=2.6.0",
+    "stable-baselines3==2.8.0",
+    "torch>=2.11.0",
+    "torchrl>=0.11.1",
+    "gymnasium==1.2.3",
+    "setuptools>=81.0.0",
 ]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
 
 [build-system]
 requires = ["setuptools"]
@@ -22,7 +37,11 @@ server = "snaikenet_server.__main__:run_main"
 visualize_gamestate = "snaikenet_server.game.visualize_gamestate:main"
 prototype = "snaikenet_server.game.prototype_game:main"
 pygame_client_demo = "snaikenet_demos.pygame_client_demo:main"
-rl-agent = "snaikenet_rl.__main__:main"
+rl-agent-devaansh = "snaikenet_rl_devaansh.__main__:main"
+rl-agent-ameer-gym = "snaikenet_rl_ameer_gymnasium.__main__:main"
+rl-agent-ameer-gymnasium-infer = "snaikenet_rl_ameer_gymnasium.infer:main"
+rl-agent-jack = "snaikenet_rl_jack.__main__:main"
+
 
 [tool.setuptools.packages.find]
 where = ["src"]

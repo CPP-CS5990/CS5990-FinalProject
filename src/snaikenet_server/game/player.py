@@ -49,6 +49,7 @@ class SnakePlayer:
     _next_direction: Direction
     _player_id: PlayerID
     _is_alive: bool = True
+    last_tick_eaten: int = 0
 
     def __init__(self, initial_position: Position, player_id: PlayerID):
         # Begins at length 1, so the head and tail are the same tile.
@@ -59,6 +60,7 @@ class SnakePlayer:
         self._prev_direction = Direction.WEST
         self._next_direction = Direction.WEST
         self._player_id = player_id
+        self.last_tick_eaten = 0
 
     def get_head_position(self) -> Position:
         return self._head.position

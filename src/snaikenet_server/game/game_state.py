@@ -8,6 +8,7 @@ from numpy.typing import NDArray
 
 from snaikenet_server.game.grid import Grid, TileData
 from snaikenet_server.game.player import SnakePlayer
+from snaikenet_server.game.scoreboard import Scoreboard
 from snaikenet_server.game.types import PlayerID, GridSize, Position, Direction
 
 
@@ -15,7 +16,9 @@ class GameState:
     def __init__(
         self,
         grid_size: GridSize,
+        tick_index: int = 0,
         viewport_distance_from_center: tuple[int, int] = (14, 14),
+        scoreboard_save_dir: str | None = "scoreboard_data",
     ):
         self._dead_players: dict[PlayerID, PlayerID | None] = {}
         self._players: dict[PlayerID, SnakePlayer] = {}
@@ -26,41 +29,71 @@ class GameState:
             viewport_distance_from_center
         )
         self._max_num_food: int = 1
+        self._scoreboard = Scoreboard(scoreboard_save_dir)
+        self._curr_tick_index = tick_index
+
+    def update_curr_tick_index(self, tick_index: int):
+        self._curr_tick_index = tick_index
+
+    def cull_starving_players(self, max_ticks_since_eaten: int):
+        for player_id, player in self._players.items():
+            player = self._players.get(player_id, None)
+            if (
+                player is not None
+                and self._curr_tick_index - player.last_tick_eaten
+                >= max_ticks_since_eaten
+            ):
+                self.kill_player(player_id)
 
     def reset_game_state(self):
+        self._scoreboard.save_and_reset()
+        # Cache state values we want to persist across games
         players = dict(self._players)
         spectators = dict(self._spectators)
         max_num_food = self._max_num_food
+        scoreboard = self._scoreboard
 
-        self.__init__(self.get_grid_size(), self._viewport_distance_from_center)
+        # reset the state
+        self.__init__(self.get_grid_size(), 0, self._viewport_distance_from_center)
 
+        # Restore the cached state values
         self._players = players
         self._spectators = spectators
         self._max_num_food = max_num_food
+        self._curr_tick_index = 0
+        self._scoreboard = scoreboard
 
     def get_viewport_distance_from_center(self) -> tuple[int, int]:
         return self._viewport_distance_from_center
 
     def kill_player(self, player_id: PlayerID, killer: PlayerID | None = None):
         player = self._players.get(player_id, None)
-        if player is not None:
-            if killer is None:
-                self._kills[player_id] = player_id
-            else:
-                self._kills[player_id] = killer
-            player.die()
-            self._dead_players[player_id] = None
-            for position in player:
-                self._grid.remove_player_at(
-                    position, player_id
-                )  # Mark all tiles occupied by the player as empty on the grid
-
-                # After removing the player from the grid, we place food at positions that don't have another player.
-                # This ensures that food doesn't spawn on top of a player that just killed this player where the players intersected
-                if not self._grid.has_player_at(position):
-                    self._grid.place_food_at(position)
-        else:
+        if player is None:
             logger.warning("Tried killing player that doesn't exist", player_id)
+            return
+        # Dead players remain in self._players (needed for death frames / spectator
+        # state), so callers like cull_starving_players and delete_player can reach
+        # this with an already-dead player. Re-running _replace_player_with_food on
+        # a dead snake re-stamps food at its old body tiles whenever they are EMPTY.
+        if player.is_dead():
+            return
+        if killer is None:  # self kill
+            self._kills[player_id] = player_id
+        else:
+            self._kills[killer] = player_id
+            self._scoreboard.increment_kills(killer)
+        player.die()
+        self._scoreboard.on_player_death(player_id, self._curr_tick_index)
+        self._dead_players[player_id] = None
+        self._replace_player_with_food(player)
+
+    def _replace_player_with_food(self, player: SnakePlayer):
+        player_id = player.get_player_id()
+
+        for position in player:
+            self._grid.remove_player_at(
+                position, player_id, True
+            )  # Mark all tiles occupied by the player as empty on the grid
 
     # Adds a new player to the game state
     def add_new_player(self, player_id: PlayerID | None = None) -> PlayerID:
@@ -124,7 +157,7 @@ class GameState:
 
             # Check for collisions with walls
             if self.position_outside_grid(next_head_position):
-                logger.info(
+                logger.debug(
                     f"Player {player_id} collided with wall at position {next_head_position} and died.\n"
                 )
                 player.remove_head()
@@ -136,15 +169,17 @@ class GameState:
             # Obviously, if multiple players are moving into the same tile, there will be a collision
             # but 1 player will still get to eat the food and grow which means that players new
             # tail will be collidable for the same tick
-            if not self._grid.food_at(next_head_position):
-                tail_position = player.remove_tail()
-                self._grid.remove_player_at(
-                    tail_position, player_id
-                )  # Mark the old tail position as empty on the grid
-            else:
-                logger.info(
+            if self._grid.food_at(next_head_position):
+                self._scoreboard.increment_food_eaten(player_id)
+                player.last_tick_eaten = self._curr_tick_index
+                logger.debug(
                     f"Player {player_id} ate food at position {next_head_position} and grew to length {len(player)}.\n"
                 )
+            else:
+                tail_position = player.remove_tail()
+                self._grid.remove_player_at(
+                    tail_position, player_id, False
+                )  # Mark the old tail position as empty on the grid
 
             self._grid.add_player_at(
                 next_head_position, player_id
@@ -222,13 +257,7 @@ class GameState:
             )
         )
         logger.debug(f"Initialized max number of food with {self._max_num_food}")
-        for _ in range(self._max_num_food):
-            food_position = self._grid.get_random_available_food_position()
-            if food_position is not None:
-                self._grid.place_food_at(food_position)
-            else:
-                logger.warning("No available positions to place initial food!\n")
-                break
+        self.handle_food_spawning()
 
     def _initialize_player_positions(self):
         num_players = len(self._players)
@@ -374,6 +403,14 @@ class GameState:
 
     def all_players_dead(self):
         return len(self._dead_players) == len(self._players)
+
+    def do_tick(self, tick_index: int, max_ticks_since_eaten: int):
+        self.update_curr_tick_index(tick_index)
+
+        self.handle_player_moves()
+        self.handle_collisions()
+        self.handle_food_spawning()
+        self.cull_starving_players(max_ticks_since_eaten)
 
 
 class PlayerView:
