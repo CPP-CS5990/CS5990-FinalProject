@@ -155,7 +155,8 @@ class SnaikeNetClientEnv(gym.Env):
         terminated = (
             not frame.is_alive
             or frame.is_spectating
-            or frame.sequence_number - self.last_food_sequence > self.max_steps_without_food
+            or frame.sequence_number - self.last_food_sequence
+            > self.max_steps_without_food
         )
 
         self.prev_frame = frame

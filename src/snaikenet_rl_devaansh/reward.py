@@ -1,14 +1,16 @@
 from snaikenet_client.client_data import ClientGameStateFrame
 from snaikenet_client.types import ClientTileType
 
-REWARD_FOOD          =  5.0    # scaled from 50 — 100x food/step ratio caused critic MSE to explode
-REWARD_KILL          =  2.0
-REWARD_DEATH         = -10.0
-REWARD_SURVIVAL      =  0.0
-REWARD_STEP          = -0.05   # scaled from -0.5 — high step penalty made early death cheaper than starving
-REWARD_CLOSER_FOOD   =  0.3    # dense shaping: moving toward nearest visible food
-REWARD_FARTHER_FOOD  = -0.05   # small penalty for moving away
-WALL_PROXIMITY_SCALE = -0.05   # penalty scaled by proximity to nearest wall
+REWARD_FOOD = 5.0  # scaled from 50 — 100x food/step ratio caused critic MSE to explode
+REWARD_KILL = 2.0
+REWARD_DEATH = -10.0
+REWARD_SURVIVAL = 0.0
+REWARD_STEP = (
+    -0.05
+)  # scaled from -0.5 — high step penalty made early death cheaper than starving
+REWARD_CLOSER_FOOD = 0.3  # dense shaping: moving toward nearest visible food
+REWARD_FARTHER_FOOD = -0.05  # small penalty for moving away
+WALL_PROXIMITY_SCALE = -0.05  # penalty scaled by proximity to nearest wall
 
 
 def _dist_to_nearest_wall(frame: ClientGameStateFrame) -> int:
@@ -43,8 +45,7 @@ def _dist_to_food(frame: ClientGameStateFrame) -> float | None:
     return best
 
 
-def compute_reward(prev: ClientGameStateFrame,
-                   curr: ClientGameStateFrame) -> float:
+def compute_reward(prev: ClientGameStateFrame, curr: ClientGameStateFrame) -> float:
     """
     Compare two consecutive frames to detect game events and returns a reward.
 

@@ -5,8 +5,8 @@ import torch.optim as optim
 from snaikenet_rl_devaansh.networks import ActorCritic
 from snaikenet_rl_devaansh.rollout_buffer import RolloutBuffer
 
-class PPO:
 
+class PPO:
     """
     PPO update logic.
 
@@ -20,15 +20,15 @@ class PPO:
     """
 
     def __init__(
-            self,
-            network: ActorCritic,
-            lr: float = 3e-4,
-            clip_eps: float = 0.2,
-            n_epochs: int = 4,
-            batch_size: int = 64,
-            vf_coef: float = 0.5,
-            ent_coef: float = 0.05,
-            target_kl: float = 0.01,
+        self,
+        network: ActorCritic,
+        lr: float = 3e-4,
+        clip_eps: float = 0.2,
+        n_epochs: int = 4,
+        batch_size: int = 64,
+        vf_coef: float = 0.5,
+        ent_coef: float = 0.05,
+        target_kl: float = 0.01,
     ):
         self.network = network
         self.clip_eps = clip_eps
@@ -77,7 +77,7 @@ class PPO:
             indices = torch.randperm(n)
 
             for start in range(0, n, self.batch_size):
-                batch_idx = indices[start: start + self.batch_size]
+                batch_idx = indices[start : start + self.batch_size]
 
                 batch_states = states[batch_idx]
                 batch_actions = actions[batch_idx]
@@ -87,8 +87,8 @@ class PPO:
                 batch_returns = returns[batch_idx]
 
                 # Re-evaluate under current policy
-                _, new_log_probs, entropy, new_values = self.network.get_action_and_value(
-                    batch_states, batch_actions
+                _, new_log_probs, entropy, new_values = (
+                    self.network.get_action_and_value(batch_states, batch_actions)
                 )
 
                 # KL early stopping — if the policy has drifted too far, stop updating
@@ -101,7 +101,9 @@ class PPO:
                 # PPO clipped surrogate loss
                 ratio = torch.exp(new_log_probs - batch_old_lp)
                 surrogate1 = ratio * batch_adv
-                surrogate2 = torch.clamp(ratio, 1 - self.clip_eps, 1 + self.clip_eps) * batch_adv
+                surrogate2 = (
+                    torch.clamp(ratio, 1 - self.clip_eps, 1 + self.clip_eps) * batch_adv
+                )
                 actor_loss = -torch.min(surrogate1, surrogate2).mean()
 
                 # Clipped value function loss — prevents the critic from making large unconstrained updates
@@ -116,7 +118,11 @@ class PPO:
                 # Entropy bonus (negative because we want to maximize entropy)
                 entropy_loss = -entropy.mean()
 
-                loss = actor_loss + self.vf_coef * critic_loss + self.ent_coef * entropy_loss
+                loss = (
+                    actor_loss
+                    + self.vf_coef * critic_loss
+                    + self.ent_coef * entropy_loss
+                )
 
                 self.optimizer.zero_grad()
                 loss.backward()

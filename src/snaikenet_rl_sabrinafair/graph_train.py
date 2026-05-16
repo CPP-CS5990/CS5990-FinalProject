@@ -88,7 +88,9 @@ plt.plot(df["timesteps"], df["reward_smooth"], label="Mean reward smoothed")
 plt.xlabel("Timesteps")
 plt.ylabel("Mean Reward")
 plt.twinx()
-plt.plot(df["timesteps"], df["exploration_rate"], label="Exploration rate", linestyle="--")
+plt.plot(
+    df["timesteps"], df["exploration_rate"], label="Exploration rate", linestyle="--"
+)
 plt.ylabel("Exploration Rate")
 plt.title("Reward and Exploration vs Timesteps")
 plt.grid(True, alpha=0.3)

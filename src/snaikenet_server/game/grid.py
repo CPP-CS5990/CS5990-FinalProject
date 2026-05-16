@@ -30,7 +30,9 @@ class Grid:
                 return other_player
         return None
 
-    def remove_player_at(self, position: Position, player_id: PlayerID, replace_with_food: bool):
+    def remove_player_at(
+        self, position: Position, player_id: PlayerID, replace_with_food: bool
+    ):
         tile = self._grid[position[0]][position[1]]
         tile.remove_player(player_id)
         # Guard required: if another player still occupies the tile, marking it
@@ -40,7 +42,6 @@ class Grid:
                 self.place_food_at(position)
             else:
                 self._food_positions.add_available_food_position(position)
-
 
     def add_player_at(self, position: Position, player_id: PlayerID):
         if self._grid[position[0]][position[1]].tile_type == TileType.FOOD:
@@ -139,7 +140,7 @@ class TileType(IntEnum):
 
 
 class TileData:
-    def __init__(self, tile_type: int = TileType.EMPTY, player_ids: list[str] =None):
+    def __init__(self, tile_type: int = TileType.EMPTY, player_ids: list[str] = None):
         if player_ids is None:
             player_ids = []
         self.tile_type: int = tile_type

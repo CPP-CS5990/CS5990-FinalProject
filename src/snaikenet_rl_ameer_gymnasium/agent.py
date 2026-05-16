@@ -55,7 +55,9 @@ class ReplayBuffer:
     def __init__(self, capacity: int):
         self._buffer: deque[tuple] = deque(maxlen=capacity)
 
-    def push(self, state: dict, action: int, reward: float, next_state: dict, done: bool):
+    def push(
+        self, state: dict, action: int, reward: float, next_state: dict, done: bool
+    ):
         self._buffer.append((state, action, reward, next_state, done))
 
     def sample(self, batch_size: int) -> list[tuple]:
@@ -65,31 +67,42 @@ class ReplayBuffer:
         return len(self._buffer)
 
 
-def obs_to_tensors(obs: dict, device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
+def obs_to_tensors(
+    obs: dict, device: torch.device
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Convert a gymnasium observation dict to tensors for the DQN."""
-    grid = torch.from_numpy(obs["grid"]).float().unsqueeze(0) / 4.0  # normalize to [0, 1]
-    scalars = torch.cat([
-        torch.from_numpy(obs["player_length"]),
-        torch.from_numpy(obs["num_kills"]),
-        torch.from_numpy(obs["closest_food"]),
-    ]).float()
-    return grid.unsqueeze(0).to(device), scalars.unsqueeze(0).to(device)
-
-
-def batch_obs_to_tensors(batch: list[dict], device: torch.device) -> tuple[torch.Tensor, torch.Tensor]:
-    """Convert a batch of observations to tensors."""
-    grids = torch.stack([
+    grid = (
         torch.from_numpy(obs["grid"]).float().unsqueeze(0) / 4.0
-        for obs in batch
-    ]).to(device)
-    scalars = torch.stack([
-        torch.cat([
+    )  # normalize to [0, 1]
+    scalars = torch.cat(
+        [
             torch.from_numpy(obs["player_length"]),
             torch.from_numpy(obs["num_kills"]),
             torch.from_numpy(obs["closest_food"]),
-        ]).float()
-        for obs in batch
-    ]).to(device)
+        ]
+    ).float()
+    return grid.unsqueeze(0).to(device), scalars.unsqueeze(0).to(device)
+
+
+def batch_obs_to_tensors(
+    batch: list[dict], device: torch.device
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Convert a batch of observations to tensors."""
+    grids = torch.stack(
+        [torch.from_numpy(obs["grid"]).float().unsqueeze(0) / 4.0 for obs in batch]
+    ).to(device)
+    scalars = torch.stack(
+        [
+            torch.cat(
+                [
+                    torch.from_numpy(obs["player_length"]),
+                    torch.from_numpy(obs["num_kills"]),
+                    torch.from_numpy(obs["closest_food"]),
+                ]
+            ).float()
+            for obs in batch
+        ]
+    ).to(device)
     return grids, scalars
 
 
@@ -106,7 +119,9 @@ class DQNAgent:
         batch_size: int = 64,
         target_update_freq: int = 10_000,
     ):
-        self.device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device or torch.device(
+            "cuda" if torch.cuda.is_available() else "cpu"
+        )
         logger.info(f"Using device: {self.device}")
         self.gamma = gamma
         self.epsilon = epsilon_start
@@ -136,7 +151,9 @@ class DQNAgent:
             q_values = self.policy_net(grids, scalars)
             return q_values.argmax(dim=1).item()
 
-    def store_transition(self, state: dict, action: int, reward: float, next_state: dict, done: bool):
+    def store_transition(
+        self, state: dict, action: int, reward: float, next_state: dict, done: bool
+    ):
         self.replay_buffer.push(state, action, reward, next_state, done)
 
     def train_step(self) -> float | None:
@@ -150,12 +167,16 @@ class DQNAgent:
         state_grids, state_scalars = batch_obs_to_tensors(list(states), self.device)
         next_grids, next_scalars = batch_obs_to_tensors(list(next_states), self.device)
 
-        actions_t = torch.tensor(actions, dtype=torch.long, device=self.device).unsqueeze(1)
+        actions_t = torch.tensor(
+            actions, dtype=torch.long, device=self.device
+        ).unsqueeze(1)
         rewards_t = torch.tensor(rewards, dtype=torch.float32, device=self.device)
         dones_t = torch.tensor(dones, dtype=torch.float32, device=self.device)
 
         # Current Q-values
-        q_values = self.policy_net(state_grids, state_scalars).gather(1, actions_t).squeeze(1)
+        q_values = (
+            self.policy_net(state_grids, state_scalars).gather(1, actions_t).squeeze(1)
+        )
 
         # Target Q-values
         with torch.no_grad():

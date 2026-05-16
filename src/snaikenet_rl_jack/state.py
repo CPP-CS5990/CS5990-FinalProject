@@ -23,5 +23,5 @@ def encode_frame(frame: ClientGameStateFrame, device: torch.device) -> torch.Ten
         )
     channels = np.zeros((NUM_TILE_TYPES, *grid.shape), dtype=np.float32)
     for t in range(NUM_TILE_TYPES):
-        channels[t] = (grid == t)
+        channels[t] = grid == t
     return torch.from_numpy(channels).to(device)

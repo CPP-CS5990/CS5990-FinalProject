@@ -4,8 +4,8 @@ import torch
 from snaikenet_client.client_data import ClientGameStateFrame
 from snaikenet_client.types import ClientTileType, ClientDirection
 
-NUM_TILE_TYPES   = len(ClientTileType)   # Empty, Wall, Food, Snake, Other_Snake
-NUM_DIR_CHANNELS = 4                     # one channel per cardinal direction
+NUM_TILE_TYPES = len(ClientTileType)  # Empty, Wall, Food, Snake, Other_Snake
+NUM_DIR_CHANNELS = 4  # one channel per cardinal direction
 
 
 def frame_to_tensor(frame: ClientGameStateFrame) -> torch.Tensor:

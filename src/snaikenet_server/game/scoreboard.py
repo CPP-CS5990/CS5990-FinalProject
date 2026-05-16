@@ -34,12 +34,24 @@ class Scoreboard:
         for player_id, score in self._scores.items():
             file_path = os.path.join(self._scores_save_path, f"{player_id}.csv")
             file_exists = os.path.exists(file_path)
-            with open(os.path.join(self._scores_save_path, f"{player_id}.csv"), "a", newline='') as f:
+            with open(
+                os.path.join(self._scores_save_path, f"{player_id}.csv"),
+                "a",
+                newline="",
+            ) as f:
                 writer = csv.writer(f)
                 if not file_exists:
-                    writer.writerow(["game_index", "food_eaten", "kills", "num_ticks_lived"]) # header
-                writer.writerow([self._game_index, score.get_food_eaten(), score.get_kills(), score.get_num_ticks_lived()])
-
+                    writer.writerow(
+                        ["game_index", "food_eaten", "kills", "num_ticks_lived"]
+                    )  # header
+                writer.writerow(
+                    [
+                        self._game_index,
+                        score.get_food_eaten(),
+                        score.get_kills(),
+                        score.get_num_ticks_lived(),
+                    ]
+                )
 
 
 class Score:

@@ -63,12 +63,16 @@ class DoubleDQNAgent:
         next_state: torch.Tensor,
         done: bool,
     ):
-        self._buffer.push(state.detach().cpu(), action, reward, next_state.detach().cpu(), done)
+        self._buffer.push(
+            state.detach().cpu(), action, reward, next_state.detach().cpu(), done
+        )
 
     def optimize_step(self) -> float | None:
         if len(self._buffer) < max(self._batch_size, self._min_buffer):
             return None
-        states, actions, rewards, next_states, dones = self._buffer.sample(self._batch_size)
+        states, actions, rewards, next_states, dones = self._buffer.sample(
+            self._batch_size
+        )
         states = states.to(self._device)
         actions = actions.to(self._device)
         rewards = rewards.to(self._device)

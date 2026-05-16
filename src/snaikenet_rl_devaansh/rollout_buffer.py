@@ -1,7 +1,7 @@
 import torch
 
-class RolloutBuffer:
 
+class RolloutBuffer:
     """
     Stores a fixed-length trajectory of experience for PPO updates.
 
@@ -9,7 +9,9 @@ class RolloutBuffer:
     then computes advantages via GAE and exposes mini-batches for training.
     """
 
-    def __init__(self, capacity: int = 512, gamma: float = 0.99, gae_lambda: float = 0.95):
+    def __init__(
+        self, capacity: int = 512, gamma: float = 0.99, gae_lambda: float = 0.95
+    ):
         self.capacity = capacity
         self.gamma = gamma
         self.gae_lambda = gae_lambda
@@ -24,13 +26,13 @@ class RolloutBuffer:
         self.dones: list[bool] = []
 
     def add(
-            self,
-            state: torch.Tensor,
-            action: int,
-            log_prob: float,
-            reward: float,
-            value: float,
-            done: bool,
+        self,
+        state: torch.Tensor,
+        action: int,
+        log_prob: float,
+        reward: float,
+        value: float,
+        done: bool,
     ):
         if len(self.states) < self.capacity:
             self.states.append(state)
@@ -54,7 +56,9 @@ class RolloutBuffer:
     def is_full(self) -> bool:
         return self._ptr >= self.capacity
 
-    def compute_advantages(self, last_value: float) -> tuple[torch.Tensor, torch.Tensor]:
+    def compute_advantages(
+        self, last_value: float
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Compute GAE advantages and discounted returns.
 
@@ -73,20 +77,24 @@ class RolloutBuffer:
             next_value = last_value if t == self.capacity - 1 else self.values[t + 1]
             non_terminal = 1.0 - float(self.dones[t])
 
-            delta = self.rewards[t] + self.gamma * next_value * non_terminal - self.values[t]
+            delta = (
+                self.rewards[t]
+                + self.gamma * next_value * non_terminal
+                - self.values[t]
+            )
             gae = delta + self.gamma * self.gae_lambda * non_terminal * gae
             advantages[t] = gae
 
-        returns  = advantages + torch.tensor(self.values)
+        returns = advantages + torch.tensor(self.values)
         return advantages, returns
 
     def get_tensors(self) -> dict[str, torch.Tensor]:
         """
         Convert stored lists to stacked tensors for training
         """
-        return{
+        return {
             "states": torch.stack(self.states),
-            "actions": torch.tensor(self.actions, dtype = torch.long),
+            "actions": torch.tensor(self.actions, dtype=torch.long),
             "log_probs": torch.tensor(self.log_probs),
             "values": torch.tensor(self.values),
         }

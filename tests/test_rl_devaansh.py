@@ -2,7 +2,11 @@ import torch
 
 from snaikenet_client.client_data import ClientGameStateFrame
 from snaikenet_client.types import ClientTileType
-from snaikenet_rl_devaansh.preprocessing import FrameStacker, NUM_TILE_TYPES, frame_to_tensor
+from snaikenet_rl_devaansh.preprocessing import (
+    FrameStacker,
+    NUM_TILE_TYPES,
+    frame_to_tensor,
+)
 from snaikenet_rl_devaansh.reward import (
     REWARD_CLOSER_FOOD,
     REWARD_DEATH,
@@ -42,9 +46,11 @@ def _make_frame(
 def _wall_penalty(frame: ClientGameStateFrame) -> float:
     return WALL_PROXIMITY_SCALE / max(_dist_to_nearest_wall(frame), 1)
 
+
 # -------------------
 # reward.py
 # -------------------
+
 
 def test_devaansh__death_returns_flat_penalty():
     prev = _make_frame(alive=True)
@@ -65,7 +71,13 @@ def test_devaansh__kill_adds_kill_reward():
     curr = _make_frame(kills=1)
     reward = compute_reward(prev, curr)
     # Both frames have no food → off-screen exploration bonus also fires
-    expected = REWARD_STEP + REWARD_SURVIVAL + _wall_penalty(curr) + REWARD_KILL + REWARD_CLOSER_FOOD * 0.1
+    expected = (
+        REWARD_STEP
+        + REWARD_SURVIVAL
+        + _wall_penalty(curr)
+        + REWARD_KILL
+        + REWARD_CLOSER_FOOD * 0.1
+    )
     assert abs(reward - expected) < 1e-6
 
 
@@ -99,7 +111,7 @@ def test_devaansh__just_ate_skips_distance_shaping():
 
 def test_devaansh__wall_proximity_penalty_increases_near_wall():
     cx, cy = W // 2, H // 2
-    far_frame  = _make_frame(wall_at=[(cx + 4, cy)])  # wall 4 tiles away
+    far_frame = _make_frame(wall_at=[(cx + 4, cy)])  # wall 4 tiles away
     near_frame = _make_frame(wall_at=[(cx + 1, cy)])  # wall 1 tile away
     assert _wall_penalty(near_frame) < _wall_penalty(far_frame)
 
@@ -125,9 +137,11 @@ def test_devaansh__dist_to_nearest_wall_finds_closest():
     frame = _make_frame(wall_at=[(cx + 2, cy), (cx + 5, cy)])
     assert _dist_to_nearest_wall(frame) == 2
 
+
 # -------------------
 # preprocessing.py
 # -------------------
+
 
 def test_devaansh__frame_to_tensor_shape_and_dtype():
     frame = _make_frame(food_at=(2, 3))
@@ -190,6 +204,7 @@ def test_devaansh__frame_stacker_step_updates_correctly():
 # rollout_buffer.py
 # -------------------
 
+
 def test_devaansh__rollout_buffer_is_full_triggers_at_capacity():
     buf = RolloutBuffer(capacity=4)
     state = torch.zeros(NUM_TILE_TYPES, W, H)
@@ -221,8 +236,8 @@ def test_devaansh__rollout_buffer_compute_advantages_shapes():
 def test_devaansh__rollout_buffer_terminal_zeroes_bootstrap():
     buf = RolloutBuffer(capacity=2, gamma=0.99, gae_lambda=0.95)
     state = torch.zeros(NUM_TILE_TYPES, W, H)
-    buf.add(state, 0, 0.0, -100.0, 0.5, True)   # terminal step
-    buf.add(state, 0, 0.0,    1.0, 0.5, False)
+    buf.add(state, 0, 0.0, -100.0, 0.5, True)  # terminal step
+    buf.add(state, 0, 0.0, 1.0, 0.5, False)
     advantages, _ = buf.compute_advantages(last_value=1.0)
     # At the terminal step (t=0), next value should be zeroed out
     # delta = reward + gamma * 0 - value = -100 - 0.5 = -100.5

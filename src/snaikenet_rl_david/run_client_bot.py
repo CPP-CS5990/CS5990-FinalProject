@@ -118,9 +118,8 @@ class DQNClientHandler(SnaikenetClientEventHandler):
 
         self.recent_actions.append(action)
 
-        if (
-                len(self.recent_actions) == 6
-                and list(self.recent_actions)[0:2] * 3 == list(self.recent_actions)
+        if len(self.recent_actions) == 6 and list(self.recent_actions)[0:2] * 3 == list(
+            self.recent_actions
         ):
             invalid_reverse = OPPOSITE_ACTION[int(self.current_direction)]
             valid_actions = [a for a in range(4) if a != invalid_reverse]

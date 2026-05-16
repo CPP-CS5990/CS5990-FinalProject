@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 
-class ActorCritic(nn.Module):
 
+class ActorCritic(nn.Module):
     """
     Shared CNN backbone with separate Actor and Critic heads.
 
@@ -32,12 +32,12 @@ class ActorCritic(nn.Module):
         self._cnn_out_size: int | None = None
 
         self.fc = nn.Sequential(
-            nn.LazyLinear(256),   # LazyLinear infers input size pn first forward pass
+            nn.LazyLinear(256),  # LazyLinear infers input size pn first forward pass
             nn.ReLU(),
         )
 
-        self.actor_head = nn.Linear(256, n_actions)   # outputs logits
-        self.critic_head = nn.Linear(256, 1)    # outputs scalar value
+        self.actor_head = nn.Linear(256, n_actions)  # outputs logits
+        self.critic_head = nn.Linear(256, 1)  # outputs scalar value
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         features = self.fc(self.cnn(x))
@@ -46,7 +46,7 @@ class ActorCritic(nn.Module):
         return logits, value
 
     def get_action_and_value(
-            self, x: torch.Tensor, action: torch.Tensor | None = None
+        self, x: torch.Tensor, action: torch.Tensor | None = None
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample an action and return (action, log_prob, entropy, value).

@@ -7,9 +7,7 @@ NUM_ACTIONS = len(ClientDirection)
 
 
 class QNetwork(nn.Module):
-    def __init__(
-        self, in_channels: int, height: int, width: int, hidden: int = 128
-    ):
+    def __init__(self, in_channels: int, height: int, width: int, hidden: int = 128):
         super().__init__()
         self.conv = nn.Sequential(
             nn.Conv2d(in_channels, 16, kernel_size=3, padding=1),

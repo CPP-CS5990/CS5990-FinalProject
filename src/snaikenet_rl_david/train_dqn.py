@@ -47,7 +47,13 @@ def run_validation_episode(env, q_net, max_steps=1000):
 
     q_net.train()
 
-    return total_reward, episode_length, final_snake_length, max_snake_length, food_collected
+    return (
+        total_reward,
+        episode_length,
+        final_snake_length,
+        max_snake_length,
+        food_collected,
+    )
 
 
 def main():
@@ -148,18 +154,20 @@ def main():
         obs = next_obs
 
         if terminated or truncated:
-            writer.writerow({
-                "phase": "train",
-                "episode": episode,
-                "timestep": step,
-                "return": episode_return,
-                "episode_length": episode_length,
-                "final_snake_length": info["player_length"],
-                "max_snake_length": episode_max_length,
-                "food_collected": episode_food_collected,
-                "total_food_collected": total_food_collected,
-                "epsilon": epsilon,
-            })
+            writer.writerow(
+                {
+                    "phase": "train",
+                    "episode": episode,
+                    "timestep": step,
+                    "return": episode_return,
+                    "episode_length": episode_length,
+                    "final_snake_length": info["player_length"],
+                    "max_snake_length": episode_max_length,
+                    "food_collected": episode_food_collected,
+                    "total_food_collected": total_food_collected,
+                    "epsilon": epsilon,
+                }
+            )
             csv_file.flush()
 
             episode += 1
@@ -217,26 +225,33 @@ def main():
 
         if step % validation_interval == 0 and step > 0:
             if step % validation_interval == 0 and step > 0:
-                torch.save({
-                    "step": step,
-                    "model_state_dict": q_net.state_dict(),
-                    "target_state_dict": target_net.state_dict(),
-                    "optimizer_state_dict": optimizer.state_dict(),
-                    "epsilon": epsilon,
-                }, checkpoint_dir / f"dqn_step_{step}.pt")
-            val_return, val_length, val_final_length, val_max_length, val_food = run_validation_episode(env, q_net)
-            writer.writerow({
-                "phase": "validation",
-                "episode": episode,
-                "timestep": step,
-                "return": val_return,
-                "episode_length": val_length,
-                "food_collected": val_food,
-                "total_food_collected": total_food_collected,
-                "final_snake_length": val_final_length,
-                "max_snake_length": val_max_length,
-                "epsilon": 0.0,
-            })
+                torch.save(
+                    {
+                        "step": step,
+                        "model_state_dict": q_net.state_dict(),
+                        "target_state_dict": target_net.state_dict(),
+                        "optimizer_state_dict": optimizer.state_dict(),
+                        "epsilon": epsilon,
+                    },
+                    checkpoint_dir / f"dqn_step_{step}.pt",
+                )
+            val_return, val_length, val_final_length, val_max_length, val_food = (
+                run_validation_episode(env, q_net)
+            )
+            writer.writerow(
+                {
+                    "phase": "validation",
+                    "episode": episode,
+                    "timestep": step,
+                    "return": val_return,
+                    "episode_length": val_length,
+                    "food_collected": val_food,
+                    "total_food_collected": total_food_collected,
+                    "final_snake_length": val_final_length,
+                    "max_snake_length": val_max_length,
+                    "epsilon": 0.0,
+                }
+            )
             csv_file.flush()
 
     csv_file.close()

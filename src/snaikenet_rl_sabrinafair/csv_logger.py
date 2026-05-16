@@ -17,16 +17,18 @@ class CsvTrainLogger(BaseCallback):
         os.makedirs(os.path.dirname(self.csv_path) or ".", exist_ok=True)
         with open(self.csv_path, "w", newline="") as f:
             writer = csv.writer(f)
-            writer.writerow([
-                "timesteps",
-                "episodes_seen",
-                "mean_episode_reward",
-                "mean_episode_length",
-                "last_episode_reward",
-                "last_episode_length",
-                "exploration_rate",
-                "loss",
-            ])
+            writer.writerow(
+                [
+                    "timesteps",
+                    "episodes_seen",
+                    "mean_episode_reward",
+                    "mean_episode_length",
+                    "last_episode_reward",
+                    "last_episode_length",
+                    "exploration_rate",
+                    "loss",
+                ]
+            )
 
     def _on_step(self) -> bool:
         infos = self.locals.get("infos", [])
@@ -41,11 +43,13 @@ class CsvTrainLogger(BaseCallback):
         if self.n_calls % self.log_freq == 0:
             mean_reward = (
                 sum(self.episode_rewards) / len(self.episode_rewards)
-                if self.episode_rewards else float("nan")
+                if self.episode_rewards
+                else float("nan")
             )
             mean_length = (
                 sum(self.episode_lengths) / len(self.episode_lengths)
-                if self.episode_lengths else float("nan")
+                if self.episode_lengths
+                else float("nan")
             )
 
             # DQN usually has exploration_rate as an attribute
@@ -59,20 +63,26 @@ class CsvTrainLogger(BaseCallback):
             except Exception:
                 pass
 
-            last_reward = self.episode_rewards[-1] if self.episode_rewards else float("nan")
-            last_length = self.episode_lengths[-1] if self.episode_lengths else float("nan")
+            last_reward = (
+                self.episode_rewards[-1] if self.episode_rewards else float("nan")
+            )
+            last_length = (
+                self.episode_lengths[-1] if self.episode_lengths else float("nan")
+            )
 
             with open(self.csv_path, "a", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow([
-                    self.num_timesteps,
-                    len(self.episode_rewards),
-                    mean_reward,
-                    mean_length,
-                    last_reward,
-                    last_length,
-                    exploration_rate,
-                    loss,
-                ])
+                writer.writerow(
+                    [
+                        self.num_timesteps,
+                        len(self.episode_rewards),
+                        mean_reward,
+                        mean_length,
+                        last_reward,
+                        last_length,
+                        exploration_rate,
+                        loss,
+                    ]
+                )
 
         return True

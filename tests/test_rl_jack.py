@@ -1,4 +1,3 @@
-
 import tempfile
 from pathlib import Path
 
@@ -126,8 +125,14 @@ def test_jack__agent_optimize_step_skips_when_buffer_empty():
 
 def test_jack__agent_target_sync_and_save_load_round_trip():
     agent = DoubleDQNAgent(
-        NUM_TILE_TYPES, W, H, DEVICE,
-        min_buffer=2, batch_size=2, target_sync_every=3, eps_decay_steps=10,
+        NUM_TILE_TYPES,
+        W,
+        H,
+        DEVICE,
+        min_buffer=2,
+        batch_size=2,
+        target_sync_every=3,
+        eps_decay_steps=10,
     )
     state = torch.zeros(NUM_TILE_TYPES, W, H)
     for i in range(6):

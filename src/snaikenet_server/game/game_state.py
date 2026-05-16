@@ -38,7 +38,11 @@ class GameState:
     def cull_starving_players(self, max_ticks_since_eaten: int):
         for player_id, player in self._players.items():
             player = self._players.get(player_id, None)
-            if player is not None and self._curr_tick_index - player.last_tick_eaten >= max_ticks_since_eaten:
+            if (
+                player is not None
+                and self._curr_tick_index - player.last_tick_eaten
+                >= max_ticks_since_eaten
+            ):
                 self.kill_player(player_id)
 
     def reset_game_state(self):
@@ -73,7 +77,7 @@ class GameState:
         # a dead snake re-stamps food at its old body tiles whenever they are EMPTY.
         if player.is_dead():
             return
-        if killer is None: # self kill
+        if killer is None:  # self kill
             self._kills[player_id] = player_id
         else:
             self._kills[killer] = player_id

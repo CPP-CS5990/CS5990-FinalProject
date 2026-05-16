@@ -27,16 +27,19 @@ COLORS = {
 X_INDEX = 0
 Y_INDEX = 1
 
+
 #####################HELPER FUNCTIONS########################
 def get_sqr_eucl_dist(pos1, pos2):
-    return (pos1[X_INDEX] - pos2[X_INDEX])**2 + (pos1[Y_INDEX] - pos2[Y_INDEX])**2
+    return (pos1[X_INDEX] - pos2[X_INDEX]) ** 2 + (pos1[Y_INDEX] - pos2[Y_INDEX]) ** 2
 
 
 class ClientEnv(gym.Env):
     # metadata = {"render_modes": []}
     metadata = {"render_modes": ["human", None]}
 
-    def __init__(self, controller, grid_size=(GRID_LENGTH, GRID_LENGTH), headless=False):
+    def __init__(
+        self, controller, grid_size=(GRID_LENGTH, GRID_LENGTH), headless=False
+    ):
         super().__init__()
         self.controller = controller
         self.headless = headless
@@ -57,7 +60,7 @@ class ClientEnv(gym.Env):
         #     shape=(self.h * self.w + 1,),
         #     dtype=np.float32,
         # )
-        #update to be current position (x1,y1), current direction, and distance to closest food (distX, distY)
+        # update to be current position (x1,y1), current direction, and distance to closest food (distX, distY)
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(5,), dtype=np.float64
         )
@@ -108,9 +111,13 @@ class ClientEnv(gym.Env):
     #     return isValidMove
 
     def step(self, action: int):
-        
+
         self.direction = ClientDirection(action)
-        prev_seq = self.controller.latest_frame.sequence_number if self.controller.latest_frame is not None else -1
+        prev_seq = (
+            self.controller.latest_frame.sequence_number
+            if self.controller.latest_frame is not None
+            else -1
+        )
 
         self.controller.direction_queue.put(self.direction)
 
@@ -130,7 +137,9 @@ class ClientEnv(gym.Env):
             else:
                 continue
 
-            reward = self._reward(self.controller.latest_frame, self.controller.old_frame)
+            reward = self._reward(
+                self.controller.latest_frame, self.controller.old_frame
+            )
             obs = self._obs_from_state(self.direction)
             terminated = not self.controller.latest_frame.is_alive
             truncated = self.steps >= self.max_steps
@@ -167,8 +176,13 @@ class ClientEnv(gym.Env):
                         self.grid_offset_x,
                         self.grid_offset_y,
                     )
-                self.render_countdown(self.screen, self.big_font, self.countdown_seconds)
-            elif self.controller.phase == ClientPhase.PLAYING and self.controller.latest_frame is not None:
+                self.render_countdown(
+                    self.screen, self.big_font, self.countdown_seconds
+                )
+            elif (
+                self.controller.phase == ClientPhase.PLAYING
+                and self.controller.latest_frame is not None
+            ):
                 # Recompute layout from actual frame grid in case it differs
                 grid_w = len(self.controller.latest_frame.grid_data)
                 grid_h = len(self.controller.latest_frame.grid_data[0]) if grid_w else 0
@@ -187,19 +201,17 @@ class ClientEnv(gym.Env):
             pygame.display.flip()
             self.clock.tick(60)
 
-
             return obs, reward, terminated, truncated, info
 
     def close(self):
         self.controller.close()
-
 
     def get_matrix_from_state(self, state: ClientGameStateFrame):
         return np.array(
             [[int(cell) for cell in row] for row in state.grid_data],
             dtype=np.float32,
         )
-    
+
     def _obs_from_state(self, curr_direction):
         curr_location = self.get_curr_location()
         dist_to_target = self.get_distances_to_food(self.controller.latest_frame)
@@ -207,7 +219,7 @@ class ClientEnv(gym.Env):
         obs = np.hstack([curr_location, curr_direction, dist_to_target])
 
         return obs
-    
+
     def _info(self, frame):
         return {
             "sequence_number": frame.sequence_number,
@@ -221,39 +233,38 @@ class ClientEnv(gym.Env):
 
         if not new_state.is_alive:
             return -10.0
-        
+
         reward = 0.0
-        
-        #positive reward for length of snake
+
+        # positive reward for length of snake
         old_len = self.get_snake_length(old_state)
         new_len = self.get_snake_length(new_state)
         if new_len > old_len:
             reward += 20.0
-        
+
         old_dist, _ = self.get_distance_to_food(old_state)
         new_dist, max_dist = self.get_distance_to_food(new_state)
         # less penalty the closer to food
         # reward += -3 * self.norm_dist(dist)
         # reward += 3 *(self.norm_dist(old_dist) - self.norm_dist(new_dist))
-        reward += -1 * (new_dist / max_dist) #normalized
+        reward += -1 * (new_dist / max_dist)  # normalized
 
-
-        #small step penalty
+        # small step penalty
         reward -= 0.05
         return reward
-    
 
     def get_distance_to_food(self, state: ClientGameStateFrame):
 
-        #get indices where there is food
+        # get indices where there is food
         priority_queue = []
-        snake_row= GRID_LENGTH / 2
+        snake_row = GRID_LENGTH / 2
         snake_col = GRID_LENGTH / 2
         if state:
-            rows, cols = np.where(self.get_matrix_from_state(state) == ClientTileType.FOOD)
+            rows, cols = np.where(
+                self.get_matrix_from_state(state) == ClientTileType.FOOD
+            )
 
             for i in range(len(rows)):
-
                 p1 = np.array([rows[i], cols[i]])
                 p2 = np.array([snake_row, snake_col])
                 # distance = np.linalg.norm(p1 - p2)
@@ -272,18 +283,19 @@ class ClientEnv(gym.Env):
 
         self.closest_food = dist
         return dist, max_distance
-    
+
     def get_distances_to_food(self, state: ClientGameStateFrame):
 
-        #get indices where there is food
+        # get indices where there is food
         priority_queue = []
-        snake_row= GRID_LENGTH / 2
+        snake_row = GRID_LENGTH / 2
         snake_col = GRID_LENGTH / 2
         if state:
-            rows, cols = np.where(self.get_matrix_from_state(state) == ClientTileType.FOOD)
+            rows, cols = np.where(
+                self.get_matrix_from_state(state) == ClientTileType.FOOD
+            )
 
             for i in range(len(rows)):
-
                 p1 = np.array([rows[i], cols[i]])
                 p2 = np.array([snake_row, snake_col])
                 distance = np.linalg.norm(p1 - p2)
@@ -300,35 +312,37 @@ class ClientEnv(gym.Env):
         priority_queue.clear()
 
         self.closest_food = dist
-        return (p1 - p2)
-    
+        return p1 - p2
+
     def get_curr_location(self):
 
-        snake_row= GRID_LENGTH / 2
+        snake_row = GRID_LENGTH / 2
         snake_col = GRID_LENGTH / 2
 
         return np.array([snake_row, snake_col])
 
     def norm_dist(self, dist):
 
-        snake_row= GRID_LENGTH / 2
+        snake_row = GRID_LENGTH / 2
         snake_col = GRID_LENGTH / 2
         p1 = np.array([0, 0])
         p2 = np.array([snake_row, snake_col])
         # max_distance = np.linalg.norm(p1 - p2)
 
-        return dist/max_distance
+        return dist / max_distance
 
     def get_snake_length(self, state: ClientGameStateFrame):
         if state:
-            rows, cols = np.where(self.get_matrix_from_state(state) == ClientTileType.SNAKE)
+            rows, cols = np.where(
+                self.get_matrix_from_state(state) == ClientTileType.SNAKE
+            )
             return len(rows)
         else:
             return 1
 
     def _terminated(self, state):
         return not self.controller.latest_frame.is_alive
-    
+
     def update_grid_layout(self, vw: int, vh: int):
         # nonlocal viewport_w, viewport_h, tile_size, grid_offset_x, grid_offset_y
         self.viewport_w, viewport_h = vw, vh
@@ -337,5 +351,6 @@ class ClientEnv(gym.Env):
         self.grid_pixel_h = vh * self.tile_size
         self.grid_offset_x = (WINDOW_WIDTH - self.grid_pixel_w) // 2
         self.grid_offset_y = (
-            SCOREBOARD_HEIGHT + (WINDOW_HEIGHT - SCOREBOARD_HEIGHT - self.grid_pixel_h) // 2
+            SCOREBOARD_HEIGHT
+            + (WINDOW_HEIGHT - SCOREBOARD_HEIGHT - self.grid_pixel_h) // 2
         )

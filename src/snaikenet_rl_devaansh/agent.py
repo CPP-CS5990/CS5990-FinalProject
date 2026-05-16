@@ -1,34 +1,40 @@
 import time
 import torch
 
-from snaikenet_client.client.client_event_handler import DefaultSnaikenetClientEventHandler
+from snaikenet_client.client.client_event_handler import (
+    DefaultSnaikenetClientEventHandler,
+)
 from snaikenet_client.client_data import ClientGameStateFrame
 from snaikenet_client.types import ClientDirection
 
 from snaikenet_rl_devaansh.networks import ActorCritic
 from snaikenet_rl_devaansh.preprocessing import (
-    FrameStacker, NUM_TILE_TYPES, NUM_DIR_CHANNELS, direction_to_tensor,
+    FrameStacker,
+    NUM_TILE_TYPES,
+    NUM_DIR_CHANNELS,
+    direction_to_tensor,
 )
 from snaikenet_rl_devaansh.rollout_buffer import RolloutBuffer
 from snaikenet_rl_devaansh.ppo import PPO
 from snaikenet_rl_devaansh.reward import compute_reward
 
-N_FRAMES     = 3        # number of frames to stack
-ROLLOUT_SIZE = 512      # steps collected before each PPO update
+N_FRAMES = 3  # number of frames to stack
+ROLLOUT_SIZE = 512  # steps collected before each PPO update
 
 # Relative actions: 0 = straight, 1 = turn left, 2 = turn right
 _TURN_LEFT = {
     ClientDirection.NORTH: ClientDirection.WEST,
-    ClientDirection.WEST:  ClientDirection.SOUTH,
+    ClientDirection.WEST: ClientDirection.SOUTH,
     ClientDirection.SOUTH: ClientDirection.EAST,
-    ClientDirection.EAST:  ClientDirection.NORTH,
+    ClientDirection.EAST: ClientDirection.NORTH,
 }
 _TURN_RIGHT = {
     ClientDirection.NORTH: ClientDirection.EAST,
-    ClientDirection.EAST:  ClientDirection.SOUTH,
+    ClientDirection.EAST: ClientDirection.SOUTH,
     ClientDirection.SOUTH: ClientDirection.WEST,
-    ClientDirection.WEST:  ClientDirection.NORTH,
+    ClientDirection.WEST: ClientDirection.NORTH,
 }
+
 
 def _resolve_action(action_idx: int, current_dir: ClientDirection) -> ClientDirection:
     if action_idx == 1:
@@ -71,12 +77,14 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
         self.metrics: list[tuple[int, float, float]] = []
 
         # Callback set by __main__ so the handler can send directions to the server
-        self.send_direction = None   # type: ignore[assignment]
+        self.send_direction = None  # type: ignore[assignment]
         # Callback invoked after each PPO update — set by __main__ for checkpointing
-        self.on_ppo_update = None   # type: ignore[assignment]
+        self.on_ppo_update = None  # type: ignore[assignment]
 
     def on_game_start(self, viewport_size: tuple[int, int]):
-        in_channels = NUM_TILE_TYPES * N_FRAMES + NUM_DIR_CHANNELS  # grid frames + direction
+        in_channels = (
+            NUM_TILE_TYPES * N_FRAMES + NUM_DIR_CHANNELS
+        )  # grid frames + direction
 
         if self.network is None:
             self.network = ActorCritic(in_channels=in_channels)
@@ -90,7 +98,7 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
         # Tick per second counter
         # t0 = time.perf_counter()
         if self.network is None:
-            return      # not initialized yet
+            return  # not initialized yet
 
         # Guard: must run before preprocessing — if prev frame was dead (on_game_restart
         # missed via UDP loss), cached action/log_prob are placeholders; reset so
@@ -121,7 +129,10 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
             # Episode metric tracking
             if self._prev_frame.is_alive:
                 self._episode_steps += 1
-                if frame.is_alive and frame.player_length > self._prev_frame.player_length:
+                if (
+                    frame.is_alive
+                    and frame.player_length > self._prev_frame.player_length
+                ):
                     self._episode_food += 1
             if not frame.is_alive and self._prev_frame.is_alive:
                 self._rollout_episodes.append((self._episode_steps, self._episode_food))
@@ -132,12 +143,12 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
             done = not frame.is_alive
 
             self.buffer.add(
-                state    = self._prev_state,
-                action   = self._prev_action,
-                log_prob = self._prev_log_prob,
-                reward   = reward,
-                value    = self._prev_value,
-                done     = done,
+                state=self._prev_state,
+                action=self._prev_action,
+                log_prob=self._prev_log_prob,
+                reward=reward,
+                value=self._prev_value,
+                done=done,
             )
 
             # If buffer is full, run a PPO update
@@ -148,9 +159,11 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
                 self.ppo.update(self.buffer, last_value=last_val)
                 self.update_count += 1
 
-                episodes = self._rollout_episodes or [(self._episode_steps, self._episode_food)]
+                episodes = self._rollout_episodes or [
+                    (self._episode_steps, self._episode_food)
+                ]
                 avg_steps = sum(e[0] for e in episodes) / len(episodes)
-                avg_food  = sum(e[1] for e in episodes) / len(episodes)
+                avg_food = sum(e[1] for e in episodes) / len(episodes)
                 self.metrics.append((self.update_count, avg_steps, avg_food))
                 self._rollout_episodes.clear()
 
@@ -163,9 +176,9 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
                 action, log_prob, _, value = self.network.get_action_and_value(
                     curr_obs.unsqueeze(0)
                 )
-            action_idx   = action.item()
+            action_idx = action.item()
             log_prob_val = log_prob.item()
-            value_val    = value.item()
+            value_val = value.item()
 
             resolved_dir = _resolve_action(action_idx, self._current_dir)
             self._current_dir = resolved_dir
@@ -176,11 +189,11 @@ class PPOAgentEventHandler(DefaultSnaikenetClientEventHandler):
             action_idx, log_prob_val, value_val = 0, 0.0, 0.0
 
         # 4. Cache for next step (_prev_state includes direction at time of action)
-        self._prev_frame    = frame
-        self._prev_state    = curr_obs
-        self._prev_action   = action_idx
+        self._prev_frame = frame
+        self._prev_state = curr_obs
+        self._prev_action = action_idx
         self._prev_log_prob = log_prob_val
-        self._prev_value    = value_val
+        self._prev_value = value_val
 
         """ 
         tick interval ms = elapsed_ms * 15

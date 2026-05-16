@@ -58,7 +58,10 @@ class QueueClientEventHandler(SnaikenetClientEventHandler):
 
         self.event_queue.put(ClientEvent(kind="frame", frame=frame))
 
-        if self._curr_sequence_number != -1 and self._curr_sequence_number + 1 != frame.sequence_number:
+        if (
+            self._curr_sequence_number != -1
+            and self._curr_sequence_number + 1 != frame.sequence_number
+        ):
             logger.warning(
                 f"Out of order sequence numbers: got {frame.sequence_number}, "
                 f"expected {self._curr_sequence_number + 1}"
@@ -70,7 +73,9 @@ class QueueClientEventHandler(SnaikenetClientEventHandler):
 
     def on_game_start(self, viewport_size: tuple[int, int]):
         logger.info(f"Game starting with viewport size {viewport_size}")
-        self.event_queue.put(ClientEvent(kind="game_restart", viewport_size=viewport_size))
+        self.event_queue.put(
+            ClientEvent(kind="game_restart", viewport_size=viewport_size)
+        )
         self._reset_current_sequence_number()
 
     def on_game_about_to_start(self, seconds_until_start: int):
@@ -201,15 +206,13 @@ class ClientController:
         self.game_over = False
         self.started = False
 
-        #for rendering
+        # for rendering
         # pygame.init()
         # self.screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
         # pygame.display.set_caption("SnaikeNET")
         # self.font = pygame.font.SysFont("consolas", 18)
         # self.big_font = pygame.font.SysFont("consolas", 120)
         # self.clock = pygame.time.Clock()
-
-
 
     def start(self):
         if self.started:
@@ -251,7 +254,9 @@ class ClientController:
         while True:
             timeout_left = deadline - time.monotonic()
             if timeout_left <= 0:
-                raise TimeoutError("Timed out waiting for initial frame in reset_episode().")
+                raise TimeoutError(
+                    "Timed out waiting for initial frame in reset_episode()."
+                )
 
             try:
                 ev = self.handler.event_queue.get(timeout=timeout_left)
@@ -290,7 +295,9 @@ class ClientController:
             raise RuntimeError("step() called before reset_episode().")
 
         if self.game_over:
-            raise RuntimeError("step() called after game over. Call reset_episode() first.")
+            raise RuntimeError(
+                "step() called after game over. Call reset_episode() first."
+            )
 
         direction = self._map_action(action)
         previous_seq = self.latest_frame.sequence_number
@@ -330,13 +337,14 @@ class ClientController:
                 self.phase = ClientPhase.WAITING
                 self.game_over = False
                 self.latest_frame = None
-                raise RuntimeError("Received game_restart during step(); call reset_episode().")
+                raise RuntimeError(
+                    "Received game_restart during step(); call reset_episode()."
+                )
 
             elif ev.kind == "game_start":
                 self.viewport_size = ev.viewport_size
                 self.update_grid_layout(*ev.viewport_size)
                 self.phase = ClientPhase.WAITING
-
 
             elif ev.kind == "countdown":
                 self.countdown_seconds = (
@@ -452,7 +460,6 @@ class ClientController:
 
         self.render_scoreboard(screen, font, frame)
 
-
     def render_empty_grid(
         self,
         screen: pygame.Surface,
@@ -475,7 +482,6 @@ class ClientController:
                 pygame.draw.rect(screen, (40, 40, 40), rect, 1)
 
         self.render_scoreboard(screen, font)
-
 
     def render_scoreboard(
         self,
@@ -503,17 +509,16 @@ class ClientController:
             text_surface, (10, (SCOREBOARD_HEIGHT - text_surface.get_height()) // 2)
         )
 
-
-    def render_countdown(self, screen: pygame.Surface, big_font: pygame.font.Font, seconds: int):
+    def render_countdown(
+        self, screen: pygame.Surface, big_font: pygame.font.Font, seconds: int
+    ):
         text = big_font.render(str(seconds), True, (255, 255, 100))
         x = (WINDOW_WIDTH - text.get_width()) // 2
         y = (WINDOW_HEIGHT - text.get_height()) // 2
         screen.blit(text, (x, y))
-
 
     def render_waiting(self, screen: pygame.Surface, font: pygame.font.Font):
         text = font.render("Waiting for server...", True, (180, 180, 180))
         x = (WINDOW_WIDTH - text.get_width()) // 2
         y = (WINDOW_HEIGHT - text.get_height()) // 2
         screen.blit(text, (x, y))
-

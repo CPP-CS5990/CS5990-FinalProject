@@ -66,33 +66,42 @@ class SnaikeNetEnv(gym.Env):
     metadata = {"render_modes": []}
 
     def __init__(
-            self,
-            server_host: str = "localhost",
-            server_tcp_port: int = 8888,
-            frame_timeout: float = 5.0,
-            death_penalty: float = -150.0,
-            food_reward: float = 150.0,
-            kill_reward: float = 100.0,
-            closer_to_food_reward: float = 1.0,
-            farther_from_food_penalty: float = -1.5,
-            living_penalty: float = -0.1,
-            penalty_multiplier_ratio: float = 1000.0,
+        self,
+        server_host: str = "localhost",
+        server_tcp_port: int = 8888,
+        frame_timeout: float = 5.0,
+        death_penalty: float = -150.0,
+        food_reward: float = 150.0,
+        kill_reward: float = 100.0,
+        closer_to_food_reward: float = 1.0,
+        farther_from_food_penalty: float = -1.5,
+        living_penalty: float = -0.1,
+        penalty_multiplier_ratio: float = 1000.0,
     ):
         super().__init__()
 
-        self.observation_space = spaces.Dict({
-            "grid": spaces.Box(
-                low=0, high=NUM_TILE_TYPES - 1,
-                shape=(VIEWPORT_SIZE, VIEWPORT_SIZE),
-                dtype=np.uint8,
-            ),
-            "player_length": spaces.Box(low=0, high=np.inf, shape=(1,), dtype=np.float32),
-            "num_kills": spaces.Box(low=0, high=np.inf, shape=(1,), dtype=np.float32),
-            "closest_food": spaces.Box(
-                low=-VIEWPORT_RADIUS, high=VIEWPORT_RADIUS,
-                shape=(2,), dtype=np.float32,
-            ),
-        })
+        self.observation_space = spaces.Dict(
+            {
+                "grid": spaces.Box(
+                    low=0,
+                    high=NUM_TILE_TYPES - 1,
+                    shape=(VIEWPORT_SIZE, VIEWPORT_SIZE),
+                    dtype=np.uint8,
+                ),
+                "player_length": spaces.Box(
+                    low=0, high=np.inf, shape=(1,), dtype=np.float32
+                ),
+                "num_kills": spaces.Box(
+                    low=0, high=np.inf, shape=(1,), dtype=np.float32
+                ),
+                "closest_food": spaces.Box(
+                    low=-VIEWPORT_RADIUS,
+                    high=VIEWPORT_RADIUS,
+                    shape=(2,),
+                    dtype=np.float32,
+                ),
+            }
+        )
         self.action_space = spaces.Discrete(4)
 
         self._server_host = server_host
@@ -145,7 +154,9 @@ class SnaikeNetEnv(gym.Env):
     def _stop_client(self):
         """Stop the client and its event loop."""
         if self._loop is not None and self._client is not None:
-            asyncio.run_coroutine_threadsafe(self._client.stop(), self._loop).result(timeout=5.0)
+            asyncio.run_coroutine_threadsafe(self._client.stop(), self._loop).result(
+                timeout=5.0
+            )
         if self._loop is not None:
             self._loop.call_soon_threadsafe(self._loop.stop)
         if self._thread is not None:
@@ -167,11 +178,12 @@ class SnaikeNetEnv(gym.Env):
                 continue
             if event.kind == "game_restart":
                 continue
-            if (event.kind == "frame"
-                    and event.frame is not None
-                    and event.frame.is_alive
-                    and not event.frame.is_spectating
-                    and event.frame.sequence_number < 5
+            if (
+                event.kind == "frame"
+                and event.frame is not None
+                and event.frame.is_alive
+                and not event.frame.is_spectating
+                and event.frame.sequence_number < 5
             ):
                 return event.frame
 
@@ -205,8 +217,14 @@ class SnaikeNetEnv(gym.Env):
             "closest_food": np.array([dy, dx], dtype=np.float32),
         }
 
-    def _compute_reward(self, prev: ClientGameStateFrame, curr: ClientGameStateFrame) -> float:
-        penalty_multiplier = max(curr.sequence_number / (curr.player_length * self._penalty_multiplier_ratio), 1)
+    def _compute_reward(
+        self, prev: ClientGameStateFrame, curr: ClientGameStateFrame
+    ) -> float:
+        penalty_multiplier = max(
+            curr.sequence_number
+            / (curr.player_length * self._penalty_multiplier_ratio),
+            1,
+        )
         # Death penalty
         if not curr.is_alive:
             return self._death_penalty * penalty_multiplier
@@ -305,22 +323,37 @@ class SnaikeNetEnv(gym.Env):
         frame = self._wait_for_frame()
 
         process_start = time.perf_counter()
-        if frame is None or not frame.is_alive or frame.sequence_number - self._last_frame_food_eaten > 1000:
+        if (
+            frame is None
+            or not frame.is_alive
+            or frame.sequence_number - self._last_frame_food_eaten > 1000
+        ):
             # Episode is over
             if frame is not None and self._prev_frame is not None:
                 obs = self._frame_to_obs(frame)
                 reward = self._compute_reward(self._prev_frame, frame)
             else:
-                obs = self._frame_to_obs(self._prev_frame) if self._prev_frame else self._observation_space_sample()
+                obs = (
+                    self._frame_to_obs(self._prev_frame)
+                    if self._prev_frame
+                    else self._observation_space_sample()
+                )
                 reward = self._death_penalty
             self._prev_frame = None
-            info = {"step_processing_time": send_elapsed + (time.perf_counter() - process_start)}
+            info = {
+                "step_processing_time": send_elapsed
+                + (time.perf_counter() - process_start)
+            }
             return obs, reward, True, False, info
 
-        reward = self._compute_reward(self._prev_frame, frame) if self._prev_frame else 0.0
+        reward = (
+            self._compute_reward(self._prev_frame, frame) if self._prev_frame else 0.0
+        )
         self._prev_frame = frame
         obs = self._frame_to_obs(frame)
-        info = {"step_processing_time": send_elapsed + (time.perf_counter() - process_start)}
+        info = {
+            "step_processing_time": send_elapsed + (time.perf_counter() - process_start)
+        }
         return obs, reward, False, False, info
 
     def _observation_space_sample(self):

@@ -26,24 +26,28 @@ from snaikenet_rl_devaansh.agent import PPOAgentEventHandler
 from snaikenet_rl_devaansh.plots import save_session_plot
 
 DEFAULT_CHECKPOINT = Path("checkpoint/ppo_agent.ppo")
-SAVE_EVERY = 10     # save checkpoint every N PPO updates
+SAVE_EVERY = 10  # save checkpoint every N PPO updates
+
 
 def setup_logger(verbose: bool):
     logger.remove()
     level = "DEBUG" if verbose else "INFO"
     logger.add(sys.stderr, level=level)
-    logger.add("logs/rl.agent.log", rotation = "1 MB", level = level)
+    logger.add("logs/rl.agent.log", rotation="1 MB", level=level)
+
 
 def save_checkpoint(handler: PPOAgentEventHandler, update_count: int, path: Path):
-    path.parent.mkdir(parents = True, exist_ok = True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(
         {
             "network": handler.network.state_dict(),
             "optimizer": handler.ppo.optimizer.state_dict(),
             "update_count": update_count,
-        }, path
+        },
+        path,
     )
     logger.info(f"Checkpoint saved at update {update_count} -> {path}")
+
 
 def load_checkpoint(handler: PPOAgentEventHandler, path: Path) -> int:
     if not path.exists():
@@ -63,6 +67,7 @@ def load_checkpoint(handler: PPOAgentEventHandler, path: Path) -> int:
         )
         return 0
 
+
 async def run_client(
     handler: PPOAgentEventHandler,
     server_host: str,
@@ -71,9 +76,9 @@ async def run_client(
     checkpoint_path: Path,
 ):
     client = SnaikenetClient(
-        server_host = server_host,
-        server_tcp_port = server_tcp_port,
-        event_handler = handler,
+        server_host=server_host,
+        server_tcp_port=server_tcp_port,
+        event_handler=handler,
     )
     await client.start(client_uuid)
     logger.info("RL agent connected to server")
@@ -100,12 +105,13 @@ async def run_client(
     while True:
         await asyncio.sleep(1)
 
+
 def start_network_thread(
-        handler: PPOAgentEventHandler,
-        server_host: str,
-        server_tcp_port: int,
-        client_uuid: str | None,
-        checkpoint_path: Path,
+    handler: PPOAgentEventHandler,
+    server_host: str,
+    server_tcp_port: int,
+    client_uuid: str | None,
+    checkpoint_path: Path,
 ):
     selector = selectors.SelectSelector()
     loop = asyncio.SelectorEventLoop(selector)
@@ -114,13 +120,32 @@ def start_network_thread(
         run_client(handler, server_host, server_tcp_port, client_uuid, checkpoint_path)
     )
 
+
 def main():
     parser = argparse.ArgumentParser(description="SnaikeNET PPO RL Agent")
-    parser.add_argument("--host", "-H", type=str, default="localhost", help="Server host (default: localhost)")
-    parser.add_argument("--port", "-p", type=int, default=8888, help="Server TCP port (default: 8888)")
-    parser.add_argument("--verbose", "-v", action="store_true", help="Enable verbose logging")
-    parser.add_argument("--reconnect-uuid", "-r", type=str, default=None, help="UUID to reconnect with")
-    parser.add_argument("--spectator", "-s", action="store_true", default=False, help="Connect as spectator")
+    parser.add_argument(
+        "--host",
+        "-H",
+        type=str,
+        default="localhost",
+        help="Server host (default: localhost)",
+    )
+    parser.add_argument(
+        "--port", "-p", type=int, default=8888, help="Server TCP port (default: 8888)"
+    )
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="Enable verbose logging"
+    )
+    parser.add_argument(
+        "--reconnect-uuid", "-r", type=str, default=None, help="UUID to reconnect with"
+    )
+    parser.add_argument(
+        "--spectator",
+        "-s",
+        action="store_true",
+        default=False,
+        help="Connect as spectator",
+    )
     parser.add_argument(
         "--checkpoint",
         type=Path,
@@ -128,19 +153,21 @@ def main():
         help=f"Path to checkpoint file (default: {DEFAULT_CHECKPOINT})",
     )
     args = parser.parse_args()
-    setup_logger(verbose = args.verbose)
+    setup_logger(verbose=args.verbose)
     checkpoint_path = args.checkpoint
 
     handler = PPOAgentEventHandler()
 
     net_thread = threading.Thread(
-        target = start_network_thread,
-        args = (handler, args.host, args.port, args.reconnect_uuid, checkpoint_path),
-        daemon = True,
+        target=start_network_thread,
+        args=(handler, args.host, args.port, args.reconnect_uuid, checkpoint_path),
+        daemon=True,
     )
     net_thread.start()
 
-    logger.info(f"RL agent running. Checkpoint: {checkpoint_path}. Press Ctrl+C to stop.")
+    logger.info(
+        f"RL agent running. Checkpoint: {checkpoint_path}. Press Ctrl+C to stop."
+    )
     try:
         net_thread.join()
     except KeyboardInterrupt:
@@ -156,6 +183,6 @@ def main():
             if plot_path:
                 logger.info(f"Session plot saved -> {plot_path}")
 
+
 if __name__ == "__main__":
     main()
-

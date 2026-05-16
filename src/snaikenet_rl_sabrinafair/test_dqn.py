@@ -10,7 +10,9 @@ from snaikenet_rl_sabrinafair.game_controller import ClientController
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Test a trained DQN agent against the SnaikeNET server.")
+    parser = argparse.ArgumentParser(
+        description="Test a trained DQN agent against the SnaikeNET server."
+    )
     parser.add_argument(
         "--model-path",
         default="dqn_final",

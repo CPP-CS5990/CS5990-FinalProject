@@ -19,7 +19,7 @@ def _find_latest_checkpoint(checkpoint_dir: str) -> str | None:
     for f in os.listdir(checkpoint_dir) if os.path.isdir(checkpoint_dir) else []:
         if f.startswith("episode_") and f.endswith(".pt"):
             try:
-                num = int(f[len("episode_"):-len(".pt")])
+                num = int(f[len("episode_") : -len(".pt")])
                 candidates.append((num, os.path.join(checkpoint_dir, f)))
             except ValueError:
                 continue
@@ -62,6 +62,7 @@ def train(
     best_path = os.path.join(checkpoint_dir, "best.pt")
     if os.path.exists(best_path) and not fresh:
         import torch
+
         saved = torch.load(best_path, map_location="cpu", weights_only=True)
         if "best_reward" in saved:
             best_reward = saved["best_reward"]
@@ -81,7 +82,9 @@ def train(
             action = agent.select_action(obs)
             select_elapsed = time.perf_counter() - select_start
             next_obs, reward, terminated, truncated, info = env.step(action)
-            response_latency_total += select_elapsed + info.get("step_processing_time", 0.0)
+            response_latency_total += select_elapsed + info.get(
+                "step_processing_time", 0.0
+            )
             response_latency_count += 1
             done = terminated or truncated
 
@@ -140,12 +143,29 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train a DQN agent on SnaikeNET")
     parser.add_argument("--host", type=str, default="localhost", help="Server host")
     parser.add_argument("--port", type=int, default=8888, help="Server TCP port")
-    parser.add_argument("--episodes", type=int, default=1000, help="Number of training episodes")
-    parser.add_argument("--max-steps", type=int, default=5000, help="Max steps per episode")
-    parser.add_argument("--save-interval", type=int, default=50, help="Save checkpoint every N episodes")
-    parser.add_argument("--checkpoint-dir", type=str, default="checkpoints", help="Checkpoint directory")
-    parser.add_argument("--resume", type=str, default=None, help="Resume from a specific checkpoint path")
-    parser.add_argument("--new", action="store_true", help="Start training from scratch (ignore existing checkpoints)")
+    parser.add_argument(
+        "--episodes", type=int, default=1000, help="Number of training episodes"
+    )
+    parser.add_argument(
+        "--max-steps", type=int, default=5000, help="Max steps per episode"
+    )
+    parser.add_argument(
+        "--save-interval", type=int, default=50, help="Save checkpoint every N episodes"
+    )
+    parser.add_argument(
+        "--checkpoint-dir", type=str, default="checkpoints", help="Checkpoint directory"
+    )
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        help="Resume from a specific checkpoint path",
+    )
+    parser.add_argument(
+        "--new",
+        action="store_true",
+        help="Start training from scratch (ignore existing checkpoints)",
+    )
     parser.add_argument("--verbose", action="store_true", help="Enable debug logging")
     return parser.parse_args()
 
